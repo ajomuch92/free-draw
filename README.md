@@ -1,7 +1,25 @@
-# Tauri + Vue + TypeScript
+# Free Draw
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Clon ligero de CorelDRAW hecho con Tauri + Vue 3 + Tailwind CSS v4. Dibujo vectorial sobre SVG nativo, unidades en milímetros.
 
-## Recommended IDE Setup
+```bash
+bun install
+bun run dev          # navegador en http://localhost:1420
+bun run tauri dev    # app de escritorio
+```
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Atajos (estilo CorelDRAW)
+
+| Acción | Tecla |
+|---|---|
+| Selección / alternar herramienta | Espacio |
+| Mano alzada, Rectángulo, Elipse, Texto | F5, F6, F7, F8 |
+| Polígono, Zoom, Desplazamiento | Y, Z, H |
+| Clic sobre objeto ya seleccionado | Alterna escalar / rotar |
+| Ctrl al dibujar / mover / rotar | Cuadrado-círculo / eje fijo / pasos de 15° |
+| Shift al dibujar o escalar | Desde el centro |
+| Paleta: clic / clic derecho | Relleno / contorno |
+| Duplicar, Duplicar en sitio | Ctrl+D, + (teclado numérico) |
+| Orden | Ctrl/Shift + RePág/AvPág |
+| Zoom a objetos / página | F4 / Shift+F4 |
+| Nuevo, Abrir, Guardar, Exportar SVG | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+E |

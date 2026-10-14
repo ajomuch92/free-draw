@@ -4,6 +4,7 @@ import {
   state as S, newDoc, openDoc, saveDoc, exportSVG, exportPNG, undo, redo, cut, copy, paste, duplicate, del,
   selectAll, toFront, toBack, forward, backward, flip, zoomPage, zoomObjects, zoomBy,
 } from "../store";
+import { convertToCurves, combine, breakApart, booleanOp } from "../paths";
 
 type Item = { label: string; key?: string; run: () => unknown } | "-";
 const menus: { label: string; items: Item[] }[] = [
@@ -41,6 +42,18 @@ const menus: { label: string; items: Item[] }[] = [
     "-",
     { label: "Reflejar horizontalmente", run: () => flip("x") },
     { label: "Reflejar verticalmente", run: () => flip("y") },
+    "-",
+    { label: "Convertir a curvas", key: "Ctrl+Q", run: () => convertToCurves() },
+    { label: "Combinar", key: "Ctrl+L", run: combine },
+    { label: "Separar", key: "Ctrl+K", run: breakApart },
+  ] },
+  { label: "Dar forma", items: [
+    { label: "Soldar", run: () => booleanOp("weld") },
+    { label: "Recortar", run: () => booleanOp("trim") },
+    { label: "Intersecar", run: () => booleanOp("intersect") },
+    { label: "Simplificar", run: () => booleanOp("simplify") },
+    { label: "Frente menos detrás", run: () => booleanOp("frontMinusBack") },
+    { label: "Detrás menos frente", run: () => booleanOp("backMinusFront") },
   ] },
 ];
 

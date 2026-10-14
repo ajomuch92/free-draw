@@ -3,10 +3,25 @@ import { reactive, computed } from "vue";
 // World units are millimetres. Shapes live in their own bbox (x, y, w, h) and
 // rotate around its centre; point lists are normalised to 0..1 inside the bbox.
 
-export type Tool = "pick" | "freehand" | "line" | "rect" | "ellipse" | "polygon" | "text" | "zoom" | "pan";
-export type ShapeType = "rect" | "ellipse" | "polygon" | "line" | "freehand" | "text";
+export type Tool = "pick" | "shape" | "freehand" | "line" | "dimension" | "rect" | "ellipse" | "polygon" | "text" | "zoom" | "pan";
+export type ShapeType = "rect" | "ellipse" | "polygon" | "path" | "text" | "dimension";
+export type DimKind = "parallel" | "h" | "v" | "angular";
 export type Dash = "solid" | "dash" | "dot";
 export type P = { x: number; y: number };
+export type NodeKind = "cusp" | "smooth" | "symmetric";
+export interface PNode {
+  x: number;
+  y: number;
+  ix: number; // handle in, relative to the node
+  iy: number;
+  ox: number; // handle out, relative to the node
+  oy: number;
+  kind: NodeKind;
+}
+export interface SubPath {
+  closed: boolean;
+  nodes: PNode[];
+}
 
 export interface Style {
   fill: string; // css colour or "none"
@@ -31,7 +46,8 @@ export interface Shape extends Style {
   locked: boolean;
   radius?: number;
   sides?: number;
-  points?: [number, number][];
+  paths?: SubPath[]; // "path": normalised nodes, handles relative to their node
+  dim?: { kind: DimKind; pts: [number, number][]; decimals: number; units: boolean };
   text?: string;
   fontSize?: number; // mm
   fontFamily?: string;
@@ -60,8 +76,8 @@ export const TYPE_NAMES: Record<ShapeType, string> = {
   rect: "Rectángulo",
   ellipse: "Elipse",
   polygon: "Polígono",
-  line: "Línea",
-  freehand: "Curva",
+  path: "Curva",
+  dimension: "Cota",
   text: "Texto artístico",
 };
 
@@ -72,6 +88,9 @@ export const state = reactive({
   lastTool: "rect" as Tool,
   rotateMode: false,
   editingText: null as string | null,
+  nodeSel: [] as string[], // "subpath:index" of selected nodes (shape tool)
+  dimMode: "parallel" as "parallel" | "hv" | "angular",
+  dimDefaults: { decimals: 2, units: true },
   defaults: { fill: "none", stroke: "#000000", strokeWidth: 0.2, dash: "solid", opacity: 1 } as Style,
   textDefaults: { fontFamily: "Arial", fontSize: 24 * PT },
   page: { size: "A4", w: 210, h: 297 },
@@ -92,7 +111,7 @@ export const uid = () => `s${Date.now().toString(36)}${(counter++).toString(36)}
 
 export function makeShape(type: ShapeType, init: Partial<Shape>): Shape {
   const style = type === "text" ? { ...state.defaults, fill: "#000000", stroke: "none" } : { ...state.defaults };
-  if (type === "line" || type === "freehand") style.fill = "none";
+  if (type === "dimension") style.fill = "none";
   const n = state.shapes.filter((s) => s.type === type).length + 1;
   return {
     id: uid(), type, name: `${TYPE_NAMES[type]} ${n}`,
@@ -416,4 +435,5 @@ export function setTool(t: Tool) {
   state.tool = t;
   state.rotateMode = false;
   state.editingText = null;
+  state.nodeSel = [];
 }

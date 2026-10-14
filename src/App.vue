@@ -11,13 +11,15 @@ import {
   toFront, toBack, forward, backward, zoomPage, zoomObjects, zoomBy, newDoc, openDoc, saveDoc, exportSVG,
   TYPE_NAMES, type Tool,
 } from "./store";
+import { convertToCurves, combine, breakApart, deleteNodes, moveNodes, worldPaths } from "./paths";
 
 const ctrlKeys: Record<string, () => unknown> = {
   z: undo, y: redo, x: cut, c: copy, v: paste, d: duplicate, a: selectAll,
   n: newDoc, o: openDoc, s: saveDoc, e: exportSVG,
   pageup: forward, pagedown: backward,
+  q: () => convertToCurves(), l: combine, k: breakApart,
 };
-const toolKeys: Record<string, Tool> = { f5: "freehand", f6: "rect", f7: "ellipse", f8: "text", y: "polygon", z: "zoom", h: "pan" };
+const toolKeys: Record<string, Tool> = { f10: "shape", f5: "freehand", f6: "rect", f7: "ellipse", f8: "text", y: "polygon", z: "zoom", h: "pan" };
 
 function onKey(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
@@ -34,6 +36,13 @@ function onKey(e: KeyboardEvent) {
 
   const nudge = e.shiftKey ? 10 : 1; // mm
   const arrows: Record<string, [number, number]> = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
+  if (arrows[k] && S.tool === "shape" && S.nodeSel.length && selected.value[0]?.type === "path") {
+    e.preventDefault();
+    const s = selected.value[0];
+    moveNodes(s, worldPaths(s), S.nodeSel, arrows[k][0] * nudge, arrows[k][1] * nudge);
+    commit();
+    return;
+  }
   if (arrows[k] && S.selection.length) {
     e.preventDefault();
     selected.value.forEach((s) => ((s.x += arrows[k][0] * nudge), (s.y += arrows[k][1] * nudge)));
@@ -48,11 +57,12 @@ function onKey(e: KeyboardEvent) {
       break;
     case "delete":
     case "backspace":
-      del();
+      S.tool === "shape" && S.nodeSel.length ? deleteNodes() : del();
       break;
     case "escape":
       S.selection = [];
       S.rotateMode = false;
+      S.nodeSel = [];
       break;
     case "f4":
       e.preventDefault();
@@ -84,6 +94,8 @@ const status = computed(() => {
   const n = selected.value.length;
   if (!n) return "Ningún objeto seleccionado";
   if (n > 1) return `${n} objetos seleccionados en Capa 1`;
+  if (S.tool === "shape" && selected.value[0].type !== "path")
+    return `${TYPE_NAMES[selected.value[0].type]} — conviértalo a curvas (Ctrl+Q) para editar sus nodos`;
   return `${TYPE_NAMES[selected.value[0].type]} en Capa 1${S.rotateMode ? " — clic de nuevo para escalar" : ""}`;
 });
 const one = computed(() => selected.value[0] ?? S.defaults);

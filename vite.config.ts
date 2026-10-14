@@ -8,6 +8,8 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [vue(), tailwindcss()],
+  // geometry only: skip paper-full's PaperScript interpreter
+  resolve: { alias: { paper: "paper/dist/paper-core.js" } },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

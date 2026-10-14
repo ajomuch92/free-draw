@@ -1,160 +1,116 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
+import { computed, onMounted, onBeforeUnmount } from "vue";
+import MenuBar from "./components/MenuBar.vue";
+import PropertyBar from "./components/PropertyBar.vue";
+import Toolbox from "./components/Toolbox.vue";
+import Canvas from "./components/Canvas.vue";
+import Docker from "./components/Docker.vue";
+import Palette from "./components/Palette.vue";
+import {
+  state as S, selected, setTool, commit, undo, redo, cut, copy, paste, duplicate, duplicateInPlace, del, selectAll,
+  toFront, toBack, forward, backward, zoomPage, zoomObjects, zoomBy, newDoc, openDoc, saveDoc, exportSVG,
+  TYPE_NAMES, type Tool,
+} from "./store";
 
-const greetMsg = ref("");
-const name = ref("");
+const ctrlKeys: Record<string, () => unknown> = {
+  z: undo, y: redo, x: cut, c: copy, v: paste, d: duplicate, a: selectAll,
+  n: newDoc, o: openDoc, s: saveDoc, e: exportSVG,
+  pageup: forward, pagedown: backward,
+};
+const toolKeys: Record<string, Tool> = { f5: "freehand", f6: "rect", f7: "ellipse", f8: "text", y: "polygon", z: "zoom", h: "pan" };
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
+function onKey(e: KeyboardEvent) {
+  const t = e.target as HTMLElement;
+  if (t.closest("input, textarea, select")) return;
+  const k = e.key.toLowerCase();
+
+  if (e.ctrlKey || e.metaKey) {
+    const fn = e.shiftKey && k === "z" ? redo : ctrlKeys[k];
+    if (fn) (e.preventDefault(), fn());
+    return;
+  }
+  if (e.shiftKey && (k === "pageup" || k === "pagedown")) return e.preventDefault(), k === "pageup" ? toFront() : toBack();
+  if (e.shiftKey && k === "f4") return e.preventDefault(), zoomPage();
+
+  const nudge = e.shiftKey ? 10 : 1; // mm
+  const arrows: Record<string, [number, number]> = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
+  if (arrows[k] && S.selection.length) {
+    e.preventDefault();
+    selected.value.forEach((s) => ((s.x += arrows[k][0] * nudge), (s.y += arrows[k][1] * nudge)));
+    commit();
+    return;
+  }
+  if (toolKeys[k]) return e.preventDefault(), setTool(toolKeys[k]);
+  switch (k) {
+    case " ":
+      e.preventDefault();
+      setTool(S.tool === "pick" ? S.lastTool : "pick");
+      break;
+    case "delete":
+    case "backspace":
+      del();
+      break;
+    case "escape":
+      S.selection = [];
+      S.rotateMode = false;
+      break;
+    case "f4":
+      e.preventDefault();
+      zoomObjects();
+      break;
+    case "+":
+      e.code === "NumpadAdd" ? duplicateInPlace() : zoomBy(1.25);
+      break;
+    case "-":
+      zoomBy(0.8);
+      break;
+  }
 }
+
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (S.dirty) e.preventDefault();
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", onKey);
+  window.addEventListener("beforeunload", onBeforeUnload);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKey);
+  window.removeEventListener("beforeunload", onBeforeUnload);
+});
+
+const status = computed(() => {
+  const n = selected.value.length;
+  if (!n) return "Ningún objeto seleccionado";
+  if (n > 1) return `${n} objetos seleccionados en Capa 1`;
+  return `${TYPE_NAMES[selected.value[0].type]} en Capa 1${S.rotateMode ? " — clic de nuevo para escalar" : ""}`;
+});
+const one = computed(() => selected.value[0] ?? S.defaults);
+const cursorText = computed(() => `( ${S.cursor.x.toFixed(2)} ; ${(S.page.h - S.cursor.y).toFixed(2)} ) mm`);
+const swatch = (c: string) => (c === "none" ? "repeating-linear-gradient(45deg,#fff 0 3px,#ddd 3px 6px)" : c);
 </script>
 
 <template>
-  <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
-
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
+  <div class="h-full flex flex-col bg-neutral-100 text-neutral-800">
+    <MenuBar />
+    <PropertyBar />
+    <div class="flex-1 min-h-0 flex">
+      <Toolbox />
+      <Canvas />
+      <Docker />
+      <Palette />
     </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
-
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
-  </main>
+    <footer class="h-6 shrink-0 flex items-center gap-4 px-2 bg-neutral-100 border-t border-neutral-300 text-[11px] text-neutral-600">
+      <span class="w-44 tabular-nums">{{ cursorText }}</span>
+      <span class="flex-1 truncate">{{ status }}</span>
+      <span class="flex items-center gap-1.5">
+        Relleno <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.fill) }" />
+      </span>
+      <span class="flex items-center gap-1.5">
+        Contorno <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.stroke) }" />
+        {{ one.stroke === "none" ? "Ninguno" : `${one.strokeWidth} mm` }}
+      </span>
+    </footer>
+  </div>
 </template>
-
-<style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
-}
-
-</style>
-<style>
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
-
-</style>

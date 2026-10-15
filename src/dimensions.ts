@@ -1,5 +1,5 @@
-import { state, makeShape, fromPoints, type DimKind, type P, type Shape } from "./store";
-import { toWorld } from "./paths";
+import { state, makeShape, fromPoints, beforeCommit, type DimKind, type P, type Shape, type Link } from "./store";
+import { toWorld, resolveLink } from "./paths";
 
 export interface DimGeometry {
   lines: string; // path data for extension + dimension lines
@@ -19,15 +19,37 @@ function arrow(tip: P, dir: P, size: number) {
 }
 
 // Create a dimension shape from world points (A, B, placement) or (vertex, A, B, placement).
-export function makeDimension(kind: DimKind, pts: P[]): Shape {
+// links[i] ties measured point i to an object so the value follows it.
+export function makeDimension(kind: DimKind, pts: P[], links: (Link | null)[] = []): Shape {
   const b = fromPoints(pts);
   return makeShape("dimension", {
     x: b.x, y: b.y, w: b.w, h: b.h,
     fill: "none",
     fontSize: 3.5, fontFamily: "Arial",
-    dim: { kind, pts: b.points, ...state.dimDefaults },
+    dim: { kind, pts: b.points, ...state.dimDefaults, links: links.some(Boolean) ? links : undefined },
   });
 }
+
+// Re-measure linked dimensions after their objects changed. The placement point
+// travels with the midpoint of the measured points so the dimension keeps its offset.
+// A linked dimension moved on its own snaps back to its objects.
+export function updateLinkedDimensions() {
+  for (const s of state.shapes) {
+    const links = s.dim?.links;
+    if (!links) continue;
+    const W = s.dim!.pts.map(([x, y]) => toWorld(s, x, y));
+    const n = W.length - 1; // last point is the placement
+    const N = W.slice(0, n).map((p, i) => (links[i] && resolveLink(links[i]!)) || p);
+    const mid = (a: P[]) => ({ x: a.reduce((t, p) => t + p.x, 0) / a.length, y: a.reduce((t, p) => t + p.y, 0) / a.length });
+    const m0 = mid(W.slice(0, n)), m1 = mid(N);
+    const moved = N.some((p, i) => Math.hypot(p.x - W[i].x, p.y - W[i].y) > 1e-9);
+    if (!moved) continue;
+    const b = fromPoints([...N, { x: W[n].x + m1.x - m0.x, y: W[n].y + m1.y - m0.y }]);
+    Object.assign(s, { x: b.x, y: b.y, w: b.w, h: b.h, rotation: 0, flipX: false, flipY: false });
+    s.dim!.pts = b.points;
+  }
+}
+beforeCommit.push(updateLinkedDimensions);
 
 export function format(s: Shape, value: number) {
   const d = s.dim!;

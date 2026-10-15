@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import {
-  state as S, newDoc, openDoc, saveDoc, exportSVG, exportPNG, undo, redo, cut, copy, paste, duplicate, del,
-  selectAll, toFront, toBack, forward, backward, flip, zoomPage, zoomObjects, zoomBy,
+  state as S, undo, redo, cut, copy, paste, duplicate, del, selectAll, toFront, toBack, forward, backward, flip,
+  zoomPage, zoomObjects, zoomBy, addPage, deletePage, gotoPage,
 } from "../store";
-import { convertToCurves, combine, breakApart, booleanOp } from "../paths";
+import { combine, breakApart, booleanOp } from "../paths";
+import { newDoc, openDoc, saveDoc, exportSVG, exportPNG } from "../files";
+import { toCurves } from "../fonts";
+import { group, ungroup, align, distribute } from "../arrange";
 
-type Item = { label: string; key?: string; run: () => unknown } | "-";
+type Item = { label: string; key?: string; run: () => unknown; checked?: () => boolean } | "-";
 const menus: { label: string; items: Item[] }[] = [
   { label: "Archivo", items: [
     { label: "Nuevo", key: "Ctrl+N", run: newDoc },
     { label: "Abrir…", key: "Ctrl+O", run: openDoc },
-    { label: "Guardar", key: "Ctrl+S", run: saveDoc },
+    { label: "Guardar", key: "Ctrl+S", run: () => saveDoc() },
+    { label: "Guardar como…", key: "Ctrl+Shift+S", run: () => saveDoc(true) },
     "-",
-    { label: "Exportar SVG…", key: "Ctrl+E", run: exportSVG },
-    { label: "Exportar PNG (300 ppp)…", run: () => exportPNG() },
+    { label: "Exportar página a SVG…", key: "Ctrl+E", run: exportSVG },
+    { label: "Exportar página a PNG (300 ppp)…", run: () => exportPNG() },
   ] },
   { label: "Editar", items: [
     { label: "Deshacer", key: "Ctrl+Z", run: undo },
@@ -33,8 +37,36 @@ const menus: { label: string; items: Item[] }[] = [
     { label: "Alejar", key: "-", run: () => zoomBy(0.8) },
     { label: "Zoom a página", key: "Shift+F4", run: zoomPage },
     { label: "Zoom a objetos", key: "F4", run: zoomObjects },
+    "-",
+    { label: "Cuadrícula", run: () => (S.grid.show = !S.grid.show), checked: () => S.grid.show },
+    { label: "Ajustar a la cuadrícula", run: () => (S.snapTo.grid = !S.snapTo.grid), checked: () => S.snapTo.grid },
+    { label: "Ajustar a las guías", run: () => (S.snapTo.guides = !S.snapTo.guides), checked: () => S.snapTo.guides },
+    { label: "Ajustar a los objetos", key: "Alt+Z", run: () => (S.snapTo.objects = !S.snapTo.objects), checked: () => S.snapTo.objects },
+    { label: "Borrar todas las guías", run: () => ((S.guides = []), (S.dirty = true)) },
+  ] },
+  { label: "Diseño", items: [
+    { label: "Insertar página después", run: () => addPage() },
+    { label: "Insertar página antes", run: () => addPage(S.pageIndex) },
+    { label: "Eliminar página", run: () => deletePage() },
+    "-",
+    { label: "Página anterior", key: "RePág", run: () => gotoPage(S.pageIndex - 1) },
+    { label: "Página siguiente", key: "AvPág", run: () => gotoPage(S.pageIndex + 1) },
   ] },
   { label: "Objeto", items: [
+    { label: "Agrupar", key: "Ctrl+G", run: group },
+    { label: "Desagrupar", key: "Ctrl+U", run: () => ungroup() },
+    { label: "Desagrupar todo", run: () => ungroup(true) },
+    "-",
+    { label: "Alinear a la izquierda", key: "L", run: () => align(["left"]) },
+    { label: "Alinear a la derecha", key: "R", run: () => align(["right"]) },
+    { label: "Alinear arriba", key: "T", run: () => align(["top"]) },
+    { label: "Alinear abajo", key: "B", run: () => align(["bottom"]) },
+    { label: "Alinear centros horizontalmente", key: "E", run: () => align(["centerY"]) },
+    { label: "Alinear centros verticalmente", key: "C", run: () => align(["centerX"]) },
+    { label: "Centrar en la página", key: "P", run: () => align(["centerX", "centerY"], true) },
+    { label: "Distribuir horizontalmente", run: () => distribute("x") },
+    { label: "Distribuir verticalmente", run: () => distribute("y") },
+    "-",
     { label: "Al frente de la página", key: "Shift+RePág", run: toFront },
     { label: "Al fondo de la página", key: "Shift+AvPág", run: toBack },
     { label: "Adelante uno", key: "Ctrl+RePág", run: forward },
@@ -43,7 +75,7 @@ const menus: { label: string; items: Item[] }[] = [
     { label: "Reflejar horizontalmente", run: () => flip("x") },
     { label: "Reflejar verticalmente", run: () => flip("y") },
     "-",
-    { label: "Convertir a curvas", key: "Ctrl+Q", run: () => convertToCurves() },
+    { label: "Convertir a curvas", key: "Ctrl+Q", run: toCurves },
     { label: "Combinar", key: "Ctrl+L", run: combine },
     { label: "Separar", key: "Ctrl+K", run: breakApart },
   ] },
@@ -87,7 +119,7 @@ const tb = "w-7 h-7 grid place-items-center rounded hover:bg-neutral-200 text-ne
             <li v-if="it === '-'" class="my-1 h-px bg-neutral-200" />
             <li v-else>
               <button class="w-full flex justify-between gap-6 px-4 py-1 text-left hover:bg-blue-100" role="menuitem" @click="run(it)">
-                <span>{{ it.label }}</span><span class="text-neutral-500">{{ it.key }}</span>
+                <span class="flex items-center gap-2"><span class="w-3 text-blue-700">{{ it.checked?.() ? "✓" : "" }}</span>{{ it.label }}</span><span class="text-neutral-500">{{ it.key }}</span>
               </button>
             </li>
           </template>
@@ -104,7 +136,7 @@ const tb = "w-7 h-7 grid place-items-center rounded hover:bg-neutral-200 text-ne
       <button :class="tb" title="Abrir (Ctrl+O)" aria-label="Abrir" @click="openDoc">
         <svg viewBox="0 0 24 24" class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h6l2 2h10v11H3z" /></svg>
       </button>
-      <button :class="tb" title="Guardar (Ctrl+S)" aria-label="Guardar" @click="saveDoc">
+      <button :class="tb" title="Guardar (Ctrl+S)" aria-label="Guardar" @click="saveDoc()">
         <svg viewBox="0 0 24 24" class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h13l3 3v13H4zM8 4v5h8V4M8 20v-6h8v6" /></svg>
       </button>
       <div class="w-px h-5 mx-1 bg-neutral-300" />
@@ -123,6 +155,22 @@ const tb = "w-7 h-7 grid place-items-center rounded hover:bg-neutral-200 text-ne
       <button :class="tb" title="Alejar" aria-label="Alejar" @click="zoomBy(0.8)">−</button>
       <button :class="tb" title="Acercar" aria-label="Acercar" @click="zoomBy(1.25)">+</button>
       <button class="px-2 h-7 rounded hover:bg-neutral-200" title="Zoom a página (Shift+F4)" @click="zoomPage">Página</button>
+      <div class="w-px h-5 mx-1 bg-neutral-300" />
+      <button :class="[tb, S.grid.show && 'bg-blue-100 ring-1 ring-blue-300']" title="Mostrar cuadrícula" aria-label="Mostrar cuadrícula" :aria-pressed="S.grid.show" @click="S.grid.show = !S.grid.show">
+        <svg viewBox="0 0 24 24" class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4h16v16H4zM9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16" /></svg>
+      </button>
+      <span class="pl-1 pr-0.5 text-neutral-500">Ajustar a:</span>
+      <button
+        v-for="o in ([['grid', 'Cuadrícula'], ['guides', 'Guías'], ['objects', 'Objetos']] as const)" :key="o[0]"
+        class="px-1.5 h-6 rounded" :class="S.snapTo[o[0]] ? 'bg-blue-100 ring-1 ring-blue-300 text-blue-800' : 'hover:bg-neutral-200'"
+        :aria-pressed="S.snapTo[o[0]]" @click="S.snapTo[o[0]] = !S.snapTo[o[0]]"
+      >{{ o[1] }}</button>
+      <label class="flex items-center gap-1 pl-1 text-neutral-500" title="Separación de la cuadrícula">
+        <input
+          type="number" min="0.5" step="0.5" class="w-12 h-6 px-1 border border-neutral-300 rounded-sm bg-white text-neutral-800"
+          :value="S.grid.spacing" @change="S.grid.spacing = Math.max(0.5, parseFloat(($event.target as HTMLInputElement).value) || 5)"
+        /> mm
+      </label>
     </div>
   </header>
 </template>

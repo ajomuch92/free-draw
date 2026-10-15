@@ -1,7 +1,7 @@
 import paper from "paper";
 import {
   state, selected, makeShape, commit, polygonPoints, uid,
-  type Shape, type SubPath, type PNode, type NodeKind, type P,
+  type Shape, type SubPath, type PNode, type NodeKind, type P, type Link,
 } from "./store";
 
 // paper.js is used headless, for curve maths only (bounds, simplify, booleans).
@@ -211,10 +211,8 @@ export function addNodes() {
   });
 }
 
-// Add a node at the point of the path nearest to p (within tol), returns false if none.
-export function addNodeAt(p: P, tol: number) {
-  const s = selected.value[0];
-  if (s?.type !== "path") return false;
+// Segment of s nearest to world point p: subpath, segment index, curve time, distance.
+export function nearestSegment(s: Shape, p: P) {
   let best: { si: number; i: number; t: number; d: number } | null = null;
   worldPaths(s).forEach((sp, si) => {
     for (let i = 0; i < sp.nodes.length; i++) {
@@ -223,7 +221,14 @@ export function addNodeAt(p: P, tol: number) {
       if (loc && (!best || loc.distance < best.d)) best = { si, i, t: loc.time, d: loc.distance };
     }
   });
-  const b = best as { si: number; i: number; t: number; d: number } | null;
+  return best as { si: number; i: number; t: number; d: number } | null;
+}
+
+// Add a node at the point of the path nearest to p (within tol), returns false if none.
+export function addNodeAt(p: P, tol: number) {
+  const s = selected.value[0];
+  if (s?.type !== "path") return false;
+  const b = nearestSegment(s, p);
   if (!b || b.d > tol || b.t < 1e-3 || b.t > 1 - 1e-3) return false;
   editNodes((subs) => splitAt(subs[b.si], b.i, b.t));
   state.nodeSel = [key(b.si, b.i + 1)];
@@ -346,19 +351,46 @@ export function moveNodes(s: Shape, orig: SubPath[], keys: string[], dx: number,
   setWorldPaths(s, subs);
 }
 
+const copySubs = (orig: SubPath[]) => orig.map((sp) => ({ closed: sp.closed, nodes: sp.nodes.map((n) => ({ ...n })) }));
+
+// After one handle of n changed, realign the other one for smooth/symmetric nodes.
+function enforceKind(n: PNode, moved: "in" | "out") {
+  if (n.kind === "cusp") return;
+  const [mx, my, ox, oy] = moved === "in" ? ["ix", "iy", "ox", "oy"] as const : ["ox", "oy", "ix", "iy"] as const;
+  const len = Math.hypot(n[mx], n[my]);
+  if (!len) return;
+  const other = n.kind === "symmetric" ? len : Math.hypot(n[ox], n[oy]);
+  n[ox] = (-n[mx] / len) * other;
+  n[oy] = (-n[my] / len) * other;
+}
+
 // Drag one handle to world point p, honouring the node kind.
 export function moveHandle(s: Shape, orig: SubPath[], si: number, ni: number, which: "in" | "out", p: P) {
-  const subs = orig.map((sp) => ({ closed: sp.closed, nodes: sp.nodes.map((n) => ({ ...n })) }));
+  const subs = copySubs(orig);
   const n = subs[si].nodes[ni];
-  const vx = p.x - n.x, vy = p.y - n.y, len = Math.hypot(vx, vy) || 1;
-  const [mx, my, ox, oy] = which === "in" ? ["ix", "iy", "ox", "oy"] as const : ["ox", "oy", "ix", "iy"] as const;
-  n[mx] = vx;
-  n[my] = vy;
-  if (n.kind !== "cusp") {
-    const other = n.kind === "symmetric" ? len : Math.hypot(n[ox], n[oy]);
-    n[ox] = (-vx / len) * other;
-    n[oy] = (-vy / len) * other;
+  if (which === "in") (n.ix = p.x - n.x, n.iy = p.y - n.y);
+  else (n.ox = p.x - n.x, n.oy = p.y - n.y);
+  enforceKind(n, which);
+  setWorldPaths(s, subs);
+}
+
+// Drag the point at time t of segment i by (dx, dy), bending it through the cursor.
+// Handle weights follow Inkscape's segment-drag formula; straight segments become curves.
+export function bendSegment(s: Shape, orig: SubPath[], si: number, i: number, t: number, dx: number, dy: number) {
+  const subs = copySubs(orig), sp = subs[si];
+  const a = sp.nodes[i], b = sp.nodes[(i + 1) % sp.nodes.length];
+  if (!a.ox && !a.oy && !b.ix && !b.iy) {
+    a.ox = (b.x - a.x) / 3; a.oy = (b.y - a.y) / 3;
+    b.ix = (a.x - b.x) / 3; b.iy = (a.y - b.y) / 3;
   }
+  t = Math.min(0.95, Math.max(0.05, t));
+  const w = t <= 1 / 6 ? 0 : t <= 0.5 ? Math.pow((6 * t - 1) / 2, 3) / 2
+    : t <= 5 / 6 ? (1 - Math.pow((6 * (1 - t) - 1) / 2, 3)) / 2 + 0.5 : 1;
+  const k0 = (1 - w) / (3 * t * (1 - t) * (1 - t)), k1 = w / (3 * t * t * (1 - t));
+  a.ox += dx * k0; a.oy += dy * k0;
+  b.ix += dx * k1; b.iy += dy * k1;
+  enforceKind(a, "out");
+  enforceKind(b, "in");
   setWorldPaths(s, subs);
 }
 
@@ -373,8 +405,8 @@ function placeResult(subs: SubPath[], style: Shape, at: number, remove: Shape[])
     state.selection = [];
     return commit();
   }
-  const { fill, stroke, strokeWidth, dash, opacity } = style;
-  const res = makeShape("path", { fill, stroke, strokeWidth, dash, opacity });
+  const { fill, gradient, stroke, strokeWidth, dash, cap, join, arrowStart, arrowEnd, opacity } = style;
+  const res = makeShape("path", { fill, gradient, stroke, strokeWidth, dash, cap, join, arrowStart, arrowEnd, opacity });
   setWorldPaths(res, subs);
   state.shapes.splice(Math.min(at, state.shapes.length), 0, res);
   state.selection = [res.id];
@@ -445,21 +477,29 @@ export function booleanOp(op: BoolOp) {
   return true;
 }
 
-// ---------- snapping ----------
+// ---------- snap points (object nodes and centres) ----------
 
-export function snapCandidates(exclude?: string): P[] {
-  return state.shapes.filter((s) => s.visible && s.id !== exclude && s.type !== "dimension").flatMap((s) => {
-    const c = toWorld(s, 0.5, 0.5);
-    if (s.type === "text") return [c, toWorld(s, 0, 0), toWorld(s, 1, 0), toWorld(s, 1, 1), toWorld(s, 0, 1)];
-    return [c, ...worldPaths(s).flatMap((sp) => sp.nodes.map((n) => ({ x: n.x, y: n.y })))];
+export type SnapPoint = P & { link: Link };
+
+export function snapCandidates(exclude: Set<string> = new Set()): SnapPoint[] {
+  return state.shapes.filter((s) => s.visible && !exclude.has(s.id) && s.type !== "dimension").flatMap((s) => {
+    const at = (nx: number, ny: number): SnapPoint => ({ ...toWorld(s, nx, ny), link: { id: s.id, nx, ny } });
+    if (s.type === "text") return [at(0.5, 0.5), at(0, 0), at(1, 0), at(1, 1), at(0, 1)];
+    // curve nodes are linked by index (they survive node edits), other shapes by bbox position
+    const nodes = s.type === "path"
+      ? worldPaths(s).flatMap((sp, si) => sp.nodes.map((n, ni) => ({ x: n.x, y: n.y, link: { id: s.id, si, ni } })))
+      : curvesOf(s).flatMap((sp) => sp.nodes.map((n) => at(n.x, n.y)));
+    return [at(0.5, 0.5), ...nodes];
   });
 }
 
-export function snap(p: P, cands: P[], tol: number): P | null {
-  let best: P | null = null, bd = tol;
-  for (const c of cands) {
-    const d = Math.hypot(c.x - p.x, c.y - p.y);
-    if (d < bd) (bd = d, best = c);
+// Current world position of a linked point, or null if its object is gone.
+export function resolveLink(l: Link): P | null {
+  const s = state.shapes.find((x) => x.id === l.id);
+  if (!s) return null;
+  if (l.si !== undefined) {
+    const n = worldPaths(s)[l.si]?.nodes[l.ni!];
+    return n ? { x: n.x, y: n.y } : null;
   }
-  return best;
+  return toWorld(s, l.nx ?? 0.5, l.ny ?? 0.5);
 }

@@ -19,17 +19,31 @@ const points = computed(() => {
   return polygonPoints(s.sides ?? 5).map(([a, b]) => `${a * s.w},${b * s.h}`).join(" ");
 });
 
+const gid = computed(() => `fdg-${props.shape.id}`);
 const paint = computed(() => {
   const s = props.shape, w = s.strokeWidth;
   return {
-    fill: s.fill,
+    fill: s.gradient ? `url(#${gid.value})` : s.fill,
     stroke: s.stroke,
     "stroke-width": w,
     "stroke-dasharray": s.dash === "dash" ? `${w * 4} ${w * 2}` : s.dash === "dot" ? `${w} ${w * 2}` : undefined,
-    "stroke-linecap": s.dash === "dot" ? "round" : undefined,
-    "stroke-linejoin": "round",
+    "stroke-linecap": s.cap ?? (s.dash === "dot" ? "round" : "butt"),
+    "stroke-linejoin": s.join ?? "round",
   } as const;
 });
+
+// Linear gradient axis across the bbox; angle counter-clockwise, 0° = left to right.
+const axis = computed(() => {
+  const a = ((props.shape.gradient?.angle ?? 0) * Math.PI) / 180, c = Math.cos(a) / 2, s = Math.sin(a) / 2;
+  return { x1: 0.5 - c, y1: 0.5 + s, x2: 0.5 + c, y2: 0.5 - s };
+});
+
+// Arrowheads sized in mm, never smaller than 2.5 mm.
+const arrowSize = computed(() => Math.max(2.5, props.shape.strokeWidth * 5));
+const marker = (end: "s" | "e") => {
+  const a = end === "s" ? props.shape.arrowStart : props.shape.arrowEnd;
+  return a && a !== "none" ? `url(#fdm-${end}-${props.shape.id})` : undefined;
+};
 
 const closedD = computed(() => (props.shape.type === "path" ? pathD(props.shape, true) : ""));
 const openD = computed(() => (props.shape.type === "path" ? pathD(props.shape, false) : ""));
@@ -52,6 +66,30 @@ const lines = computed(() => (props.shape.text ?? "").split("\n"));
     </g>
 
     <g v-else :transform="transform">
+      <defs v-if="shape.gradient || marker('s') || marker('e')">
+        <linearGradient v-if="shape.gradient?.type === 'linear'" :id="gid" v-bind="axis">
+          <stop offset="0" :stop-color="shape.gradient.from" />
+          <stop offset="1" :stop-color="shape.gradient.to" />
+        </linearGradient>
+        <radialGradient v-else-if="shape.gradient" :id="gid">
+          <stop offset="0" :stop-color="shape.gradient.from" />
+          <stop offset="1" :stop-color="shape.gradient.to" />
+        </radialGradient>
+        <template v-for="end in (['s', 'e'] as const)" :key="end">
+          <marker
+            v-if="marker(end)" :id="`fdm-${end}-${shape.id}`" viewBox="0 0 10 10"
+            :refX="(end === 's' ? shape.arrowStart : shape.arrowEnd) === 'dot' ? 5 : 9" refY="5"
+            :markerWidth="arrowSize" :markerHeight="arrowSize" markerUnits="userSpaceOnUse" orient="auto-start-reverse"
+          >
+            <circle v-if="(end === 's' ? shape.arrowStart : shape.arrowEnd) === 'dot'" cx="5" cy="5" r="4" :fill="shape.stroke === 'none' ? '#000' : shape.stroke" />
+            <path
+              v-else-if="(end === 's' ? shape.arrowStart : shape.arrowEnd) === 'open'"
+              d="M1 1 L9 5 L1 9" fill="none" :stroke="shape.stroke === 'none' ? '#000' : shape.stroke" stroke-width="1.5" stroke-linejoin="miter"
+            />
+            <path v-else d="M0 0 L10 5 L0 10 Z" :fill="shape.stroke === 'none' ? '#000' : shape.stroke" />
+          </marker>
+        </template>
+      </defs>
       <rect v-if="shape.type === 'rect'" :width="shape.w" :height="shape.h" :rx="shape.radius" v-bind="paint" pointer-events="all" />
       <ellipse
         v-else-if="shape.type === 'ellipse'"
@@ -62,7 +100,7 @@ const lines = computed(() => (props.shape.text ?? "").split("\n"));
       <template v-else-if="shape.type === 'path'">
         <path v-if="closedD" :d="closedD" v-bind="paint" fill-rule="evenodd" pointer-events="all" />
         <template v-if="openD">
-          <path :d="openD" v-bind="paint" fill="none" />
+          <path :d="openD" v-bind="paint" fill="none" :marker-start="marker('s')" :marker-end="marker('e')" />
           <path class="fd-hit" :d="openD" fill="none" stroke="transparent" :stroke-width="8 / zoom" />
         </template>
       </template>

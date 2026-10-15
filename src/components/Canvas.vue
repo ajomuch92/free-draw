@@ -584,9 +584,13 @@ let ro: ResizeObserver;
 onMounted(() => {
   let first = true;
   ro = new ResizeObserver(([entry]) => {
-    S.viewW = entry.contentRect.width;
-    S.viewH = entry.contentRect.height;
-    if (first && S.viewH > 0) (first = false, zoomPage());
+    const { width: w, height: h } = entry.contentRect;
+    if (!w || !h) return; // hidden behind the home screen: keep the last view
+    // keep the world point at the centre of the view where it was (maximising keeps the page centred)
+    if (!first) (S.panX += (w - S.viewW) / 2, S.panY += (h - S.viewH) / 2);
+    S.viewW = w;
+    S.viewH = h;
+    if (first) (first = false, zoomPage());
   });
   ro.observe(svg.value!);
   window.addEventListener("keydown", onKey);

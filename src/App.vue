@@ -23,7 +23,7 @@ const ctrlKeys: Record<string, () => unknown> = {
   pageup: forward, pagedown: backward,
   q: toCurves, l: combine, k: breakApart, g: group, u: () => ungroup(),
 };
-const toolKeys: Record<string, Tool> = { f10: "shape", f5: "freehand", f6: "rect", f7: "ellipse", f8: "text", y: "polygon", z: "zoom", h: "pan" };
+const toolKeys: Record<string, Tool> = { i: "eyedropper", f10: "shape", f5: "freehand", f6: "rect", f7: "ellipse", f8: "text", y: "polygon", z: "zoom", h: "pan" };
 // CorelDRAW alignment keys, active with the pick tool and a selection
 const alignKeys: Record<string, Edge> = { l: "left", r: "right", t: "top", b: "bottom", e: "centerY", c: "centerX" };
 

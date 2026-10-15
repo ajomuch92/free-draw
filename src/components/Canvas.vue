@@ -10,6 +10,7 @@ import {
 } from "../paths";
 import { makeDimension, hvKind, updateLinkedDimensions } from "../dimensions";
 import { snapContext, snapPoint, moveTargets, snapMove, type SnapResult } from "../snap";
+import { sampleAt, applySampled } from "../eyedropper";
 import ShapeView from "./ShapeView.vue";
 import Rulers from "./Rulers.vue";
 
@@ -127,7 +128,7 @@ const screenAlign = computed(() =>
 function onDown(e: PointerEvent) {
   if (S.editingText) finishText();
   e.preventDefault();
-  if (e.button === 2 && S.tool !== "zoom") return;
+  if (e.button === 2 && S.tool !== "zoom" && S.tool !== "eyedropper") return;
   svg.value!.setPointerCapture(e.pointerId);
   const p = toWorld(e), t = e.target as Element;
 
@@ -160,6 +161,16 @@ function onDown(e: PointerEvent) {
     S.shapes.push(s);
     S.selection = [s.id];
     return editText(S.shapes[S.shapes.length - 1]);
+  }
+  if (S.tool === "eyedropper") {
+    // take the colour under the cursor; with a selection, paint it as fill (Shift/right click: outline)
+    const asStroke = e.shiftKey || e.button === 2;
+    sampleAt(p).then((c) => {
+      if (!c) return;
+      S.sampled = c;
+      if (S.selection.length) applySampled(asStroke ? "stroke" : "fill");
+    });
+    return;
   }
   if (S.tool === "shape") return shapeToolDown(e, p);
   if (S.tool === "dimension") return dimensionDown(p);
@@ -539,7 +550,7 @@ function finishText() {
 // ---------- lifecycle ----------
 
 const cursor = computed(() => ({
-  pick: "default", shape: "default", pan: "grab", zoom: "zoom-in", text: "text",
+  pick: "default", shape: "default", pan: "grab", zoom: "zoom-in", text: "text", eyedropper: "copy",
 }[S.tool as string] ?? "crosshair"));
 
 let ro: ResizeObserver;

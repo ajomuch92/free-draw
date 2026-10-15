@@ -128,15 +128,17 @@ export async function saveDoc(as = false) {
 
 // ---------- export (current page) ----------
 
-function pageSVG() {
+// Standalone SVG of the current page's objects for the given world viewBox.
+export function shapesSVG(view = [0, 0, state.page.w, state.page.h], size = [`${state.page.w}mm`, `${state.page.h}mm`], background = "") {
   state.editingText = null;
   const g = document.getElementById("fd-shapes")!.cloneNode(true) as Element;
   g.querySelectorAll(".fd-hit").forEach((n) => n.remove());
   g.querySelectorAll("[data-id]").forEach((n) => n.removeAttribute("data-id"));
   g.querySelectorAll("[pointer-events]").forEach((n) => n.removeAttribute("pointer-events"));
-  const { w, h } = state.page;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">${g.innerHTML}</svg>`;
+  const bg = background && `<rect width="${state.page.w}" height="${state.page.h}" fill="${background}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size[0]}" height="${size[1]}" viewBox="${view.join(" ")}">${bg}${g.innerHTML}</svg>`;
 }
+const pageSVG = () => shapesSVG();
 
 const exportName = () => (state.pages.length > 1 ? `${state.fileName} - ${state.pages[state.pageIndex].name}` : state.fileName);
 

@@ -13,13 +13,14 @@ const tools: { id: Tool; label: string; key: string; icon: string }[] = [
   { id: "ellipse", label: "Elipse", key: "F7", icon: "M12 5c4.4 0 8 3.1 8 7s-3.6 7-8 7-8-3.1-8-7 3.6-7 8-7z" },
   { id: "polygon", label: "Polígono", key: "Y", icon: "M12 3l8.5 6.2-3.3 10H6.8L3.5 9.2z" },
   { id: "text", label: "Texto", key: "F8", icon: "M5 5h14M12 5v14M9 19h6" },
+  { id: "eyedropper", label: "Gotero (clic: relleno · Shift o clic derecho: contorno)", key: "I", icon: "M18 3l3 3-3.5 3.5 1 1-2 2-1-1L8 19H5v-3l7.5-7.5-1-1 2-2 1 1z" },
 ];
 </script>
 
 <template>
   <nav class="w-11 shrink-0 flex flex-col items-center gap-0.5 py-1.5 bg-neutral-100 border-r border-neutral-300">
     <template v-for="(t, i) in tools" :key="t.id">
-      <div v-if="i === 4 || i === 10" class="w-7 h-px my-1 bg-neutral-300" />
+      <div v-if="i === 4 || i === 10 || i === 11" class="w-7 h-px my-1 bg-neutral-300" />
       <button
         class="w-9 h-9 grid place-items-center rounded transition-colors"
         :class="S.tool === t.id ? 'bg-blue-100 ring-1 ring-blue-400 text-blue-800' : 'text-neutral-700 hover:bg-neutral-200'"

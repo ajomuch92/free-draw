@@ -10,6 +10,7 @@ import {
 } from "../paths";
 import { toCurves } from "../fonts";
 import { group, ungroup, canUngroup } from "../arrange";
+import { applySampled, sampleScreen, canPickScreen } from "../eyedropper";
 
 const frame = computed(() => selectionFrame());
 const one = computed(() => (selected.value.length === 1 ? selected.value[0] : null));
@@ -79,7 +80,25 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
 <template>
   <div class="h-10 shrink-0 flex items-center gap-3 px-2 bg-neutral-50 border-b border-neutral-300 text-[11px] text-neutral-700 overflow-x-auto [&_input]:h-6 [&_input]:px-1 [&_input]:border [&_input]:border-neutral-300 [&_input]:rounded-sm [&_input]:bg-white [&_select]:h-6 [&_select]:border [&_select]:border-neutral-300 [&_select]:rounded-sm [&_select]:bg-white whitespace-nowrap">
     <!-- Dimension tool options -->
-    <template v-if="S.tool === 'dimension'">
+    <!-- Eyedropper -->
+    <template v-if="S.tool === 'eyedropper'">
+      <span class="flex items-center gap-1.5">
+        Muestra
+        <span
+          class="w-8 h-5 border border-neutral-400 rounded-sm"
+          :style="{ background: S.sampled ?? 'repeating-linear-gradient(45deg,#fff 0 3px,#ddd 3px 6px)' }"
+        />
+        <span class="w-14 font-mono tabular-nums">{{ S.sampled ?? "—" }}</span>
+      </span>
+      <div class="flex gap-0.5">
+        <button :class="btn" :disabled="!S.sampled" title="Rellenar la selección (o los objetos nuevos) con la muestra" @click="applySampled('fill')">Aplicar relleno</button>
+        <button :class="btn" :disabled="!S.sampled" title="Usar la muestra como contorno" @click="applySampled('stroke')">Aplicar contorno</button>
+      </div>
+      <button v-if="canPickScreen" :class="btn" title="Tomar un color de cualquier parte de la pantalla, incluso fuera de la ventana" @click="sampleScreen">Tomar de la pantalla</button>
+      <span class="text-neutral-500">Clic en el dibujo para tomar un color; si hay objetos seleccionados se aplica como relleno (Shift o clic derecho: contorno).</span>
+    </template>
+
+    <template v-else-if="S.tool === 'dimension'">
       <div class="flex gap-0.5">
         <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'parallel')" title="Cota paralela" @click="S.dimMode = 'parallel'">Paralela</button>
         <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'hv')" title="Cota horizontal o vertical" @click="S.dimMode = 'hv'">Horizontal/vertical</button>

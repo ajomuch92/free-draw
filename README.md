@@ -10,7 +10,7 @@ bun run dev          # browser at http://localhost:1420
 bun run tauri dev    # desktop app
 ```
 
-In the desktop app, open, save and export use the native Windows dialogs, and it warns before closing with unsaved changes; in the browser files are downloaded. **File** lists recently opened documents (desktop only). A document can have **multiple pages** (tabs below the canvas), with rulers, guides and a grid.
+In the desktop app, open, save and export use the native Windows dialogs, and it warns before closing with unsaved changes; in the browser files are downloaded. **File** lists recently opened documents (desktop only), and **File → Close** returns to a home screen with New, Open and the recent files. A document can have **multiple pages** (tabs below the canvas), with rulers, guides and a grid.
 
 The interface is in **Spanish and English** (ES/EN selector in the menu bar; it starts in the system language). Strings live in `src/i18n.ts`: the Spanish text is the key, and `bun run check:i18n` fails if any of them is missing its translation.
 

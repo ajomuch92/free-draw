@@ -6,7 +6,7 @@ import {
 } from "../store";
 import { combine, booleanOp } from "../paths";
 import { breakApart } from "../dimensions";
-import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, drawingBounds, importImage, recent, openRecent, baseName } from "../files";
+import { newDoc, openDoc, closeDoc, saveDoc, exportSVG, exportPNG, drawingBounds, importImage, recent, openRecent, baseName } from "../files";
 import { toCurves } from "../fonts";
 import { group, ungroup, align, distribute } from "../arrange";
 import { t, lang, type Lang } from "../i18n";
@@ -37,6 +37,7 @@ const menus = computed<{ label: string; items: Item[] }[]>(() => [
     ...recent.value.map((p, i): Item => ({ label: `${i + 1} ${baseName(p)}`, title: p, run: () => openRecent(p) })),
     { label: "Guardar", key: "Ctrl+S", run: () => saveDoc() },
     { label: "Guardar como…", key: "Ctrl+Shift+S", run: () => saveDoc(true) },
+    { label: "Cerrar", run: closeDoc },
     "-",
     { label: "Importar imagen…", key: "Ctrl+I", run: importImage },
     { label: "Exportar página a SVG…", key: "Ctrl+E", run: exportSVG },

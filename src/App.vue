@@ -7,6 +7,7 @@ import Canvas from "./components/Canvas.vue";
 import Docker from "./components/Docker.vue";
 import Palette from "./components/Palette.vue";
 import PageTabs from "./components/PageTabs.vue";
+import Home from "./components/Home.vue";
 import {
   state as S, selected, setTool, commit, undo, redo, cut, copy, paste, duplicate, duplicateInPlace, del, selectAll,
   toFront, toBack, forward, backward, zoomPage, zoomObjects, zoomBy, gotoPage, units,
@@ -33,6 +34,7 @@ function onKey(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
   if (t.closest("input, textarea, select, dialog")) return;
   const k = e.key.toLowerCase();
+  if (S.home && !((e.ctrlKey || e.metaKey) && (k === "n" || k === "o"))) return; // only New/Open on the home screen
 
   if (e.ctrlKey || e.metaKey) {
     const fn = e.shiftKey && k === "z" ? redo : e.shiftKey && k === "s" ? () => saveDoc(true) : ctrlKeys[k];
@@ -116,26 +118,30 @@ const fillSwatch = computed(() => (one.value.gradient ? `linear-gradient(90deg, 
 <template>
   <div class="h-full flex flex-col bg-neutral-100 text-neutral-800">
     <MenuBar />
-    <PropertyBar />
-    <div class="flex-1 min-h-0 flex">
-      <Toolbox />
-      <div class="flex-1 min-w-0 flex flex-col">
-        <Canvas />
-        <PageTabs />
+    <Home v-if="S.home" />
+    <!-- v-show, not v-if: the canvas stays mounted for exports and keeps its view -->
+    <div v-show="!S.home" class="flex-1 min-h-0 flex flex-col">
+      <PropertyBar />
+      <div class="flex-1 min-h-0 flex">
+        <Toolbox />
+        <div class="flex-1 min-w-0 flex flex-col">
+          <Canvas />
+          <PageTabs />
+        </div>
+        <Docker />
+        <Palette />
       </div>
-      <Docker />
-      <Palette />
+      <footer class="h-6 shrink-0 flex items-center gap-4 px-2 bg-neutral-100 border-t border-neutral-300 text-[11px] text-neutral-600">
+        <span class="w-44 tabular-nums">{{ cursorText }}</span>
+        <span class="flex-1 truncate">{{ status }}</span>
+        <span class="flex items-center gap-1.5">
+          {{ t("Relleno") }} <span class="w-4 h-3 border border-neutral-400" :style="{ background: fillSwatch }" />
+        </span>
+        <span class="flex items-center gap-1.5">
+          {{ t("Contorno") }} <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.stroke) }" />
+          {{ one.stroke === "none" ? t("Ninguno") : `${one.strokeWidth} mm` }}
+        </span>
+      </footer>
     </div>
-    <footer class="h-6 shrink-0 flex items-center gap-4 px-2 bg-neutral-100 border-t border-neutral-300 text-[11px] text-neutral-600">
-      <span class="w-44 tabular-nums">{{ cursorText }}</span>
-      <span class="flex-1 truncate">{{ status }}</span>
-      <span class="flex items-center gap-1.5">
-        {{ t("Relleno") }} <span class="w-4 h-3 border border-neutral-400" :style="{ background: fillSwatch }" />
-      </span>
-      <span class="flex items-center gap-1.5">
-        {{ t("Contorno") }} <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.stroke) }" />
-        {{ one.stroke === "none" ? t("Ninguno") : `${one.strokeWidth} mm` }}
-      </span>
-    </footer>
   </div>
 </template>

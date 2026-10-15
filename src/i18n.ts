@@ -318,4 +318,8 @@ export const en: Record<string, string> = {
   "● Punto": "● Dot",
   "+ Cruz": "+ Cross",
   "× Equis": "× X mark",
+  "Cerrar": "Close",
+  "Nuevo documento": "New document",
+  "Recientes": "Recent",
+  "Todavía no hay documentos recientes.": "No recent documents yet.",
 };

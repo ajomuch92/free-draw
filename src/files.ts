@@ -63,12 +63,12 @@ function load(doc: { app?: string; page?: typeof state.page; pages?: Page[]; sha
   state.selection = [];
   state.fileName = name;
   state.filePath = path;
+  state.home = false;
   resetHistory();
   zoomPage();
 }
 
-export async function newDoc() {
-  if (!(await confirmDiscard())) return;
+function resetDoc() {
   state.pages = [{ id: uid(), name: t("Página {n}", { n: 1 }), shapes: [] }];
   state.pageIndex = 0;
   state.guides = [];
@@ -77,6 +77,19 @@ export async function newDoc() {
   state.filePath = null;
   resetHistory();
   zoomPage();
+}
+
+export async function newDoc() {
+  if (!(await confirmDiscard())) return;
+  resetDoc();
+  state.home = false;
+}
+
+// Close the document and show the home screen with the recent files.
+export async function closeDoc() {
+  if (!(await confirmDiscard())) return;
+  resetDoc();
+  state.home = true;
 }
 
 // ---------- recent files (desktop only: the browser never sees real paths) ----------

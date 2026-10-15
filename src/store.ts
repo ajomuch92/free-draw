@@ -159,6 +159,7 @@ export const state = reactive({
   fileName: t("Sin título"),
   filePath: null as string | null,
   dirty: false,
+  home: false, // home screen (recent files) shown instead of the workspace
 });
 
 export const selected = computed(() => state.shapes.filter((s) => state.selection.includes(s.id)));
@@ -310,6 +311,7 @@ let hIndex = 0;
 
 export function commit() {
   beforeCommit.forEach((fn) => fn());
+  state.home = false; // any edit (e.g. importing an image from the home screen) brings the document back
   history.splice(hIndex + 1);
   history.push(docSnapshot());
   if (history.length > 200) history.shift();

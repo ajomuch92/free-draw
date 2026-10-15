@@ -1,3 +1,4 @@
+import { ref } from "vue";
 import { state, uid, resetHistory, zoomPage, makeShape, commit, type Page } from "./store";
 import { t } from "./i18n";
 
@@ -19,7 +20,7 @@ export async function tell(text: string) {
 }
 
 const confirmDiscard = () => !state.dirty || ask(t("Hay cambios sin guardar. ¿Descartarlos?"));
-const baseName = (p: string) => p.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, "");
+export const baseName = (p: string) => p.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, "");
 
 function download(blob: Blob, name: string) {
   const a = document.createElement("a");
@@ -78,15 +79,47 @@ export async function newDoc() {
   zoomPage();
 }
 
+// ---------- recent files (desktop only: the browser never sees real paths) ----------
+
+const RECENT_KEY = "fd-recent";
+export const recent = ref<string[]>((() => {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+})());
+function setRecent(list: string[]) {
+  recent.value = list.slice(0, 8);
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent.value));
+  } catch {}
+}
+const remember = (path: string) => setRecent([path, ...recent.value.filter((p) => p !== path)]);
+
+async function readDoc(path: string) {
+  const { readTextFile } = await import("@tauri-apps/plugin-fs");
+  load(JSON.parse(await readTextFile(path)), baseName(path), path);
+  remember(path);
+}
+
+export async function openRecent(path: string) {
+  if (!(await confirmDiscard())) return;
+  try {
+    await readDoc(path);
+  } catch {
+    setRecent(recent.value.filter((p) => p !== path));
+    await tell(t("No se pudo abrir {path}. Se quitó de los recientes.", { path }));
+  }
+}
+
 export async function openDoc() {
   if (!(await confirmDiscard())) return;
   try {
     if (isTauri) {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const path = await open({ multiple: false, filters: [docFilter(), { name: "JSON", extensions: ["json"] }] });
-      if (!path) return;
-      const { readTextFile } = await import("@tauri-apps/plugin-fs");
-      load(JSON.parse(await readTextFile(path)), baseName(path), path);
+      if (path) await readDoc(path);
       return;
     }
     const file = await new Promise<File | undefined>((resolve) => {
@@ -158,6 +191,7 @@ export async function saveDoc(as = false) {
   state.filePath = path;
   state.fileName = baseName(path);
   state.dirty = false;
+  remember(path);
 }
 
 // ---------- export (current page) ----------

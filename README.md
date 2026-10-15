@@ -8,7 +8,7 @@ bun run dev          # navegador en http://localhost:1420
 bun run tauri dev    # app de escritorio
 ```
 
-En la app de escritorio, abrir, guardar y exportar usan los diálogos nativos de Windows y avisa antes de cerrar con cambios sin guardar; en el navegador los archivos se descargan. El documento puede tener **varias páginas** (pestañas abajo del lienzo), con reglas, guías y cuadrícula.
+En la app de escritorio, abrir, guardar y exportar usan los diálogos nativos de Windows y avisa antes de cerrar con cambios sin guardar; en el navegador los archivos se descargan. **Archivo** muestra los documentos abiertos recientemente (solo escritorio). El documento puede tener **varias páginas** (pestañas abajo del lienzo), con reglas, guías y cuadrícula.
 
 La interfaz está en **español e inglés** (selector ES/EN en la barra de menú; arranca en el idioma del sistema). Los textos viven en `src/i18n.ts`: el texto en español es la clave, y `bun run check:i18n` falla si a alguno le falta su traducción.
 

@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import {
   state as S, undo, redo, cut, copy, paste, duplicate, del, selectAll, toFront, toBack, forward, backward, flip,
   zoomPage, zoomObjects, zoomBy, addPage, deletePage, gotoPage,
 } from "../store";
 import { combine, breakApart, booleanOp } from "../paths";
-import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, importImage } from "../files";
+import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, importImage, recent, openRecent, baseName } from "../files";
 import { toCurves } from "../fonts";
 import { group, ungroup, align, distribute } from "../arrange";
 import { t, lang, type Lang } from "../i18n";
 
-type Item = { label: string; key?: string; run: () => unknown; checked?: () => boolean } | "-";
-const menus: { label: string; items: Item[] }[] = [
+type Item = { label: string; key?: string; title?: string; run: () => unknown; checked?: () => boolean } | "-";
+const menus = computed<{ label: string; items: Item[] }[]>(() => [
   { label: "Archivo", items: [
     { label: "Nuevo", key: "Ctrl+N", run: newDoc },
     { label: "Abrir…", key: "Ctrl+O", run: openDoc },
+    // numbered like CorelDRAW; the number also keeps file names out of the translation lookup
+    ...recent.value.map((p, i): Item => ({ label: `${i + 1} ${baseName(p)}`, title: p, run: () => openRecent(p) })),
     { label: "Guardar", key: "Ctrl+S", run: () => saveDoc() },
     { label: "Guardar como…", key: "Ctrl+Shift+S", run: () => saveDoc(true) },
     "-",
@@ -89,7 +91,7 @@ const menus: { label: string; items: Item[] }[] = [
     { label: "Frente menos detrás", run: () => booleanOp("frontMinusBack") },
     { label: "Detrás menos frente", run: () => booleanOp("backMinusFront") },
   ] },
-];
+]);
 
 const open = ref<number | null>(null);
 function run(item: Item) {
@@ -121,7 +123,7 @@ const tb = "w-7 h-7 grid place-items-center rounded hover:bg-neutral-200 text-ne
           <template v-for="(it, j) in m.items" :key="j">
             <li v-if="it === '-'" class="my-1 h-px bg-neutral-200" />
             <li v-else>
-              <button class="w-full flex justify-between gap-6 px-4 py-1 text-left hover:bg-blue-100" role="menuitem" @click="run(it)">
+              <button class="w-full flex justify-between gap-6 px-4 py-1 text-left hover:bg-blue-100" role="menuitem" :title="it.title" @click="run(it)">
                 <span class="flex items-center gap-2"><span class="w-3 text-blue-700">{{ it.checked?.() ? "✓" : "" }}</span>{{ t(it.label) }}</span><span class="text-neutral-500">{{ it.key && t(it.key) }}</span>
               </button>
             </li>

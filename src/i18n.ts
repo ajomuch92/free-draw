@@ -301,4 +301,5 @@ export const en: Record<string, string> = {
   "Radio de las esquinas": "Corner radius",
   "Mismo radio en todas las esquinas": "Same radius on all corners",
   "Radio independiente por esquina": "Independent radius per corner",
+  "No se pudo abrir {path}. Se quitó de los recientes.": "Could not open {path}. It was removed from the recent files.",
 };

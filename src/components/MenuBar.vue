@@ -5,7 +5,7 @@ import {
   zoomPage, zoomObjects, zoomBy, addPage, deletePage, gotoPage,
 } from "../store";
 import { combine, breakApart, booleanOp } from "../paths";
-import { newDoc, openDoc, saveDoc, exportSVG, exportPNG } from "../files";
+import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, importImage } from "../files";
 import { toCurves } from "../fonts";
 import { group, ungroup, align, distribute } from "../arrange";
 
@@ -17,6 +17,7 @@ const menus: { label: string; items: Item[] }[] = [
     { label: "Guardar", key: "Ctrl+S", run: () => saveDoc() },
     { label: "Guardar como…", key: "Ctrl+Shift+S", run: () => saveDoc(true) },
     "-",
+    { label: "Importar imagen…", key: "Ctrl+I", run: importImage },
     { label: "Exportar página a SVG…", key: "Ctrl+E", run: exportSVG },
     { label: "Exportar página a PNG (300 ppp)…", run: () => exportPNG() },
   ] },

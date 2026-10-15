@@ -39,4 +39,4 @@ Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, fre
 | Duplicar, Duplicar en sitio | Ctrl+D, + (teclado numérico) |
 | Orden | Ctrl/Shift + RePág/AvPág |
 | Zoom a objetos / página | F4 / Shift+F4 |
-| Nuevo, Abrir, Guardar, Guardar como, Exportar SVG | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+E |
+| Nuevo, Abrir, Guardar, Guardar como, Importar imagen, Exportar SVG | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+I, Ctrl+E |

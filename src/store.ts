@@ -4,7 +4,7 @@ import { reactive, computed } from "vue";
 // rotate around its centre; point lists are normalised to 0..1 inside the bbox.
 
 export type Tool = "pick" | "shape" | "eyedropper" | "freehand" | "line" | "dimension" | "rect" | "ellipse" | "polygon" | "text" | "zoom" | "pan";
-export type ShapeType = "rect" | "ellipse" | "polygon" | "path" | "text" | "dimension";
+export type ShapeType = "rect" | "ellipse" | "polygon" | "path" | "text" | "dimension" | "image";
 export type DimKind = "parallel" | "h" | "v" | "angular";
 export type Dash = "solid" | "dash" | "dot";
 export type Cap = "butt" | "round" | "square";
@@ -76,6 +76,7 @@ export interface Shape extends Style {
   fontFamily?: string;
   natW?: number; // unscaled text size, used to stretch text to its bbox
   natH?: number;
+  src?: string; // image data URL
 }
 
 export interface Page {
@@ -112,6 +113,7 @@ export const TYPE_NAMES: Record<ShapeType, string> = {
   path: "Curva",
   dimension: "Cota",
   text: "Texto artístico",
+  image: "Mapa de bits",
 };
 
 let counter = 0;
@@ -161,6 +163,7 @@ export const selected = computed(() => state.shapes.filter((s) => state.selectio
 export function makeShape(type: ShapeType, init: Partial<Shape>): Shape {
   const style: Style = type === "text" ? { ...state.defaults, fill: "#000000", stroke: "none" } : { ...state.defaults };
   if (type === "dimension") style.fill = "none";
+  if (type === "image") style.stroke = "none";
   if (type !== "path") (style.arrowStart = "none", style.arrowEnd = "none");
   const n = state.shapes.filter((s) => s.type === type).length + 1;
   return {

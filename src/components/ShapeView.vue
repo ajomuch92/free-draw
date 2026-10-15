@@ -104,6 +104,7 @@ const lines = computed(() => (props.shape.text ?? "").split("\n"));
           <path class="fd-hit" :d="openD" fill="none" stroke="transparent" :stroke-width="8 / zoom" />
         </template>
       </template>
+      <image v-else-if="shape.type === 'image'" :href="shape.src" :width="shape.w" :height="shape.h" preserveAspectRatio="none" pointer-events="all" />
       <g v-else-if="shape.type === 'text'" :transform="`scale(${shape.w / (shape.natW || 1)} ${shape.h / (shape.natH || 1)})`">
         <text :font-size="shape.fontSize" :font-family="shape.fontFamily" v-bind="paint" style="white-space: pre">
           <tspan v-for="(l, i) in lines" :key="i" x="0" :dy="(shape.fontSize ?? 0) * (i ? 1.2 : 0.9)">{{ l || " " }}</tspan>

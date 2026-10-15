@@ -484,7 +484,7 @@ export type SnapPoint = P & { link: Link };
 export function snapCandidates(exclude: Set<string> = new Set()): SnapPoint[] {
   return state.shapes.filter((s) => s.visible && !exclude.has(s.id) && s.type !== "dimension").flatMap((s) => {
     const at = (nx: number, ny: number): SnapPoint => ({ ...toWorld(s, nx, ny), link: { id: s.id, nx, ny } });
-    if (s.type === "text") return [at(0.5, 0.5), at(0, 0), at(1, 0), at(1, 1), at(0, 1)];
+    if (s.type === "text" || s.type === "image") return [at(0.5, 0.5), at(0, 0), at(1, 0), at(1, 1), at(0, 1)];
     // curve nodes are linked by index (they survive node edits), other shapes by bbox position
     const nodes = s.type === "path"
       ? worldPaths(s).flatMap((sp, si) => sp.nodes.map((n, ni) => ({ x: n.x, y: n.y, link: { id: s.id, si, ni } })))

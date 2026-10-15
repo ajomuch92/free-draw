@@ -1,4 +1,4 @@
-import { state, uid, resetHistory, zoomPage, type Page } from "./store";
+import { state, uid, resetHistory, zoomPage, makeShape, commit, type Page } from "./store";
 
 // Desktop (Tauri) gets native dialogs and real files; the browser falls back to downloads.
 export const isTauri = "__TAURI_INTERNALS__" in window;
@@ -99,6 +99,39 @@ export async function openDoc() {
   } catch {
     await tell("El archivo no es un documento de Free Draw válido.");
   }
+}
+
+// ---------- import ----------
+
+// The browser picker works in the Tauri webview too; the image is embedded as a data URL.
+export async function importImage() {
+  const file = await new Promise<File | undefined>((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => resolve(input.files?.[0]);
+    input.click();
+  });
+  if (!file) return;
+  const src = await new Promise<string>((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.readAsDataURL(file);
+  });
+  const img = new Image();
+  img.src = src;
+  try {
+    await img.decode();
+  } catch {
+    return tell("No se pudo leer la imagen.");
+  }
+  // 96 dpi, shrunk to fit the page, centred on it
+  const k = Math.min(25.4 / 96, state.page.w / img.naturalWidth, state.page.h / img.naturalHeight);
+  const w = img.naturalWidth * k, h = img.naturalHeight * k;
+  const s = makeShape("image", { src, w, h, x: (state.page.w - w) / 2, y: (state.page.h - h) / 2, name: baseName(file.name) });
+  state.shapes.push(s);
+  state.selection = [s.id];
+  commit();
 }
 
 const docJSON = () =>

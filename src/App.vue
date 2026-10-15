@@ -13,13 +13,13 @@ import {
   TYPE_NAMES, type Tool,
 } from "./store";
 import { combine, breakApart, deleteNodes, moveNodes, worldPaths } from "./paths";
-import { newDoc, openDoc, saveDoc, exportSVG, guardWindowClose } from "./files";
+import { newDoc, openDoc, saveDoc, exportSVG, importImage, guardWindowClose } from "./files";
 import { toCurves } from "./fonts";
 import { group, ungroup, align, type Edge } from "./arrange";
 
 const ctrlKeys: Record<string, () => unknown> = {
   z: undo, y: redo, x: cut, c: copy, v: paste, d: duplicate, a: selectAll,
-  n: newDoc, o: openDoc, s: () => saveDoc(), e: exportSVG,
+  n: newDoc, o: openDoc, s: () => saveDoc(), e: exportSVG, i: importImage,
   pageup: forward, pagedown: backward,
   q: toCurves, l: combine, k: breakApart, g: group, u: () => ungroup(),
 };

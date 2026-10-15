@@ -149,8 +149,12 @@ export function fromPaper(item: paper.PathItem): SubPath[] {
 
 export function pathD(s: Shape, closed: boolean) {
   const w = s.w, h = s.h;
+  // straight segments must be L: a C with control points on its ends has no end tangent,
+  // which leaves arrow markers (orient="auto") pointing at 0°
   const seg = (a: PNode, b: PNode) =>
-    ` C${(a.x + a.ox) * w} ${(a.y + a.oy) * h} ${(b.x + b.ix) * w} ${(b.y + b.iy) * h} ${b.x * w} ${b.y * h}`;
+    !a.ox && !a.oy && !b.ix && !b.iy
+      ? ` L${b.x * w} ${b.y * h}`
+      : ` C${(a.x + a.ox) * w} ${(a.y + a.oy) * h} ${(b.x + b.ix) * w} ${(b.y + b.iy) * h} ${b.x * w} ${b.y * h}`;
   return (s.paths ?? []).filter((sp) => sp.closed === closed && sp.nodes.length).map((sp) => {
     const n = sp.nodes;
     let d = `M${n[0].x * w} ${n[0].y * h}`;

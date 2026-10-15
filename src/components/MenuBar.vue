@@ -129,7 +129,7 @@ const tb = "w-7 h-7 grid place-items-center rounded hover:bg-neutral-200 text-ne
         </ul>
       </div>
       <span class="ml-auto pr-2 text-neutral-500">{{ S.fileName }}{{ S.dirty ? " *" : "" }}</span>
-      <select class="h-5 mr-1 bg-transparent text-neutral-600" :aria-label="t('Idioma')" :value="lang" @change="setLang">
+      <select class="h-6 mr-1 px-1.5 border border-neutral-300 rounded-sm bg-white text-neutral-700":aria-label="t('Idioma')" :value="lang" @change="setLang">
         <option value="es">ES</option>
         <option value="en">EN</option>
       </select>

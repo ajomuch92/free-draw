@@ -1,47 +1,49 @@
 # Free Draw
 
-Clon ligero de CorelDRAW hecho con Tauri + Vue 3 + Tailwind CSS v4. Dibujo vectorial sobre SVG nativo, unidades en milímetros.
+**English** · [Español](README.es.md)
+
+A lightweight CorelDRAW clone built with Tauri + Vue 3 + Tailwind CSS v4. Vector drawing on native SVG, units in millimeters.
 
 ```bash
 bun install
-bun run dev          # navegador en http://localhost:1420
-bun run tauri dev    # app de escritorio
+bun run dev          # browser at http://localhost:1420
+bun run tauri dev    # desktop app
 ```
 
-En la app de escritorio, abrir, guardar y exportar usan los diálogos nativos de Windows y avisa antes de cerrar con cambios sin guardar; en el navegador los archivos se descargan. **Archivo** muestra los documentos abiertos recientemente (solo escritorio). El documento puede tener **varias páginas** (pestañas abajo del lienzo), con reglas, guías y cuadrícula.
+In the desktop app, open, save and export use the native Windows dialogs, and it warns before closing with unsaved changes; in the browser files are downloaded. **File** lists recently opened documents (desktop only). A document can have **multiple pages** (tabs below the canvas), with rulers, guides and a grid.
 
-La interfaz está en **español e inglés** (selector ES/EN en la barra de menú; arranca en el idioma del sistema). Los textos viven en `src/i18n.ts`: el texto en español es la clave, y `bun run check:i18n` falla si a alguno le falta su traducción.
+The interface is in **Spanish and English** (ES/EN selector in the menu bar; it starts in the system language). Strings live in `src/i18n.ts`: the Spanish text is the key, and `bun run check:i18n` fails if any of them is missing its translation.
 
-Los **rectángulos** pueden tener las esquinas redondeadas con un mismo radio o uno distinto por esquina (candado en la barra de propiedades).
+**Rectangles** can have rounded corners, with one radius for all of them or a different one per corner (lock button in the property bar).
 
-Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, frente/detrás) usan [paper.js](http://paperjs.org) solo para cálculo y conservan las curvas. El objetivo es el objeto de más atrás de la selección. Las **cotas** (paralela, horizontal/vertical, angular) se ajustan a los nodos de los objetos al dibujarlas.
+The **Shaping** operations (weld, trim, intersect, simplify, front/back minus) use [paper.js](http://paperjs.org) for the maths only and keep the curves. The target is the backmost object of the selection. **Dimensions** (parallel, horizontal/vertical, angular) snap to object nodes while drawing.
 
-## Atajos (estilo CorelDRAW)
+## Shortcuts (CorelDRAW style)
 
-| Acción | Tecla |
+| Action | Key |
 |---|---|
-| Selección / alternar herramienta | Espacio |
-| Mano alzada, Rectángulo, Elipse, Texto | F5, F6, F7, F8 |
-| Polígono, Zoom, Desplazamiento | Y, Z, H |
-| Forma (editar nodos) | F10 |
-| Forma: doble clic en nodo / en segmento | Eliminar nodo / agregar nodo |
-| Forma: arrastrar un segmento | Curvarlo (las líneas rectas pasan a curva) |
-| Convertir a curvas (también texto, solo escritorio), Combinar, Separar | Ctrl+Q, Ctrl+L, Ctrl+K |
-| Agrupar, Desagrupar | Ctrl+G, Ctrl+U |
-| Ctrl+clic | Seleccionar un objeto dentro de un grupo |
-| Alinear izquierda, derecha, arriba, abajo | L, R, T, B |
-| Alinear centros (misma fila / misma columna), centrar en página | E, C, P |
-| Página anterior / siguiente | RePág / AvPág |
-| Arrastrar desde una regla / soltar sobre ella | Crear guía / borrar guía |
-| Alt al mover | Sin ajuste a guías, cuadrícula ni objetos |
-| Ajustar a objetos | Alt+Z |
-| Clic sobre objeto ya seleccionado | Alterna escalar / rotar |
-| Ctrl al dibujar / mover / rotar | Cuadrado-círculo / eje fijo / pasos de 15° |
-| Alt al escalar desde una esquina | Sin mantener proporción |
-| Shift al dibujar o escalar | Desde el centro |
-| Paleta: clic / clic derecho | Relleno / contorno |
-| Paleta: "+" / Mayús+clic en un color propio | Agregar / quitar color personalizado |
-| Duplicar, Duplicar en sitio | Ctrl+D, + (teclado numérico) |
-| Orden | Ctrl/Shift + RePág/AvPág |
-| Zoom a objetos / página | F4 / Shift+F4 |
-| Nuevo, Abrir, Guardar, Guardar como, Importar imagen, Exportar SVG | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+I, Ctrl+E |
+| Pick / toggle tool | Space |
+| Freehand, Rectangle, Ellipse, Text | F5, F6, F7, F8 |
+| Polygon, Zoom, Pan | Y, Z, H |
+| Shape (edit nodes) | F10 |
+| Shape: double-click a node / a segment | Delete node / add node |
+| Shape: drag a segment | Bend it (straight lines become curves) |
+| Convert to curves (text too, desktop only), Combine, Break apart | Ctrl+Q, Ctrl+L, Ctrl+K |
+| Group, Ungroup | Ctrl+G, Ctrl+U |
+| Ctrl+click | Select an object inside a group |
+| Align left, right, top, bottom | L, R, T, B |
+| Align centers (same row / same column), center to page | E, C, P |
+| Previous / next page | PgUp / PgDn |
+| Drag from a ruler / drop onto it | Create guide / delete guide |
+| Alt while moving | No snapping to guides, grid or objects |
+| Snap to objects | Alt+Z |
+| Click an already selected object | Toggle scale / rotate |
+| Ctrl while drawing / moving / rotating | Square-circle / locked axis / 15° steps |
+| Alt while scaling from a corner | Don't keep proportions |
+| Shift while drawing or scaling | From the center |
+| Palette: click / right click | Fill / outline |
+| Palette: "+" / Shift+click a custom color | Add / remove custom color |
+| Duplicate, Duplicate in place | Ctrl+D, + (numeric keypad) |
+| Order | Ctrl/Shift + PgUp/PgDn |
+| Zoom to objects / page | F4 / Shift+F4 |
+| New, Open, Save, Save As, Import image, Export SVG | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+I, Ctrl+E |

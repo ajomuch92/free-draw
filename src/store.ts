@@ -1,4 +1,5 @@
 import { reactive, computed } from "vue";
+import { t } from "./i18n";
 
 // World units are millimetres. Shapes live in their own bbox (x, y, w, h) and
 // rotate around its centre; point lists are normalised to 0..1 inside the bbox.
@@ -120,7 +121,7 @@ let counter = 0;
 export const uid = () => `s${Date.now().toString(36)}${(counter++).toString(36)}`;
 
 export const state = reactive({
-  pages: [{ id: uid(), name: "Página 1", shapes: [] }] as Page[],
+  pages: [{ id: uid(), name: t("Página {n}", { n: 1 }), shapes: [] }] as Page[],
   pageIndex: 0,
   // shapes of the current page; everything else works on this
   get shapes(): Shape[] {
@@ -153,7 +154,7 @@ export const state = reactive({
   viewW: 800,
   viewH: 600,
   cursor: { x: 0, y: 0 } as P,
-  fileName: "Sin título",
+  fileName: t("Sin título"),
   filePath: null as string | null,
   dirty: false,
 });
@@ -167,7 +168,7 @@ export function makeShape(type: ShapeType, init: Partial<Shape>): Shape {
   if (type !== "path") (style.arrowStart = "none", style.arrowEnd = "none");
   const n = state.shapes.filter((s) => s.type === type).length + 1;
   return {
-    id: uid(), type, name: `${TYPE_NAMES[type]} ${n}`,
+    id: uid(), type, name: `${t(TYPE_NAMES[type])} ${n}`,
     x: 0, y: 0, w: 0, h: 0, rotation: 0, flipX: false, flipY: false, visible: true, locked: false,
     ...style, ...init,
   };
@@ -346,7 +347,7 @@ export function gotoPage(i: number) {
 }
 
 export function addPage(at = state.pageIndex + 1) {
-  state.pages.splice(at, 0, { id: uid(), name: `Página ${state.pages.length + 1}`, shapes: [] });
+  state.pages.splice(at, 0, { id: uid(), name: t("Página {n}", { n: state.pages.length + 1 }), shapes: [] });
   state.selection = [];
   state.pageIndex = at;
   commit();

@@ -16,6 +16,7 @@ import { combine, breakApart, deleteNodes, moveNodes, worldPaths } from "./paths
 import { newDoc, openDoc, saveDoc, exportSVG, importImage, guardWindowClose } from "./files";
 import { toCurves } from "./fonts";
 import { group, ungroup, align, type Edge } from "./arrange";
+import { t } from "./i18n";
 
 const ctrlKeys: Record<string, () => unknown> = {
   z: undo, y: redo, x: cut, c: copy, v: paste, d: duplicate, a: selectAll,
@@ -97,13 +98,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 const status = computed(() => {
   const n = selected.value.length;
-  if (!n) return "Ningún objeto seleccionado";
+  if (!n) return t("Ningún objeto seleccionado");
   const groups = units().filter((u) => u.length > 1 && u.some((s) => S.selection.includes(s.id)));
-  if (groups.length === 1 && groups[0].length === n) return `Grupo de ${n} objetos en Capa 1`;
-  if (n > 1) return `${n} objetos seleccionados en Capa 1`;
+  if (groups.length === 1 && groups[0].length === n) return t("Grupo de {n} objetos en Capa 1", { n });
+  if (n > 1) return t("{n} objetos seleccionados en Capa 1", { n });
   if (S.tool === "shape" && selected.value[0].type !== "path")
-    return `${TYPE_NAMES[selected.value[0].type]} — conviértalo a curvas (Ctrl+Q) para editar sus nodos`;
-  return `${TYPE_NAMES[selected.value[0].type]} en Capa 1${S.rotateMode ? " — clic de nuevo para escalar" : ""}`;
+    return t("{type} — conviértalo a curvas (Ctrl+Q) para editar sus nodos", { type: t(TYPE_NAMES[selected.value[0].type]) });
+  return t("{type} en Capa 1", { type: t(TYPE_NAMES[selected.value[0].type]) }) + (S.rotateMode ? t(" — clic de nuevo para escalar") : "");
 });
 const one = computed(() => selected.value[0] ?? S.defaults);
 const cursorText = computed(() => `( ${S.cursor.x.toFixed(2)} ; ${(S.page.h - S.cursor.y).toFixed(2)} ) mm`);
@@ -128,11 +129,11 @@ const fillSwatch = computed(() => (one.value.gradient ? `linear-gradient(90deg, 
       <span class="w-44 tabular-nums">{{ cursorText }}</span>
       <span class="flex-1 truncate">{{ status }}</span>
       <span class="flex items-center gap-1.5">
-        Relleno <span class="w-4 h-3 border border-neutral-400" :style="{ background: fillSwatch }" />
+        {{ t("Relleno") }} <span class="w-4 h-3 border border-neutral-400" :style="{ background: fillSwatch }" />
       </span>
       <span class="flex items-center gap-1.5">
-        Contorno <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.stroke) }" />
-        {{ one.stroke === "none" ? "Ninguno" : `${one.strokeWidth} mm` }}
+        {{ t("Contorno") }} <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.stroke) }" />
+        {{ one.stroke === "none" ? t("Ninguno") : `${one.strokeWidth} mm` }}
       </span>
     </footer>
   </div>

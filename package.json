@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "check:i18n": "bun scripts/i18n-check.ts"
   },
   "dependencies": {
     "@hueycolor/vue": "^1.0.1",

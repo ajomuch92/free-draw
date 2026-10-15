@@ -2,6 +2,7 @@
 import { nextTick, ref } from "vue";
 import { state as S, gotoPage, addPage, deletePage, renamePage } from "../store";
 import { ask } from "../files";
+import { t } from "../i18n";
 
 const renaming = ref<number | null>(null);
 const input = ref<HTMLInputElement[]>();
@@ -20,7 +21,7 @@ function finishRename(i: number, e: Event) {
 
 async function remove(i: number) {
   const p = S.pages[i];
-  if (p.shapes.length && !(await ask(`¿Eliminar "${p.name}" y sus ${p.shapes.length} objetos?`))) return;
+  if (p.shapes.length && !(await ask(t('¿Eliminar "{name}" y sus {n} objetos?', { name: p.name, n: p.shapes.length })))) return;
   deletePage(i);
 }
 
@@ -29,9 +30,9 @@ const nav = "w-6 h-6 grid place-items-center rounded hover:bg-neutral-200 disabl
 
 <template>
   <div class="h-7 shrink-0 flex items-center gap-0.5 px-1 bg-neutral-100 border-t border-neutral-300 text-[11px] text-neutral-700">
-    <button :class="nav" :disabled="S.pageIndex === 0" title="Página anterior (RePág)" aria-label="Página anterior" @click="gotoPage(S.pageIndex - 1)">‹</button>
-    <span class="px-1 tabular-nums text-neutral-500">{{ S.pageIndex + 1 }} de {{ S.pages.length }}</span>
-    <button :class="nav" :disabled="S.pageIndex === S.pages.length - 1" title="Página siguiente (AvPág)" aria-label="Página siguiente" @click="gotoPage(S.pageIndex + 1)">›</button>
+    <button :class="nav" :disabled="S.pageIndex === 0" :title="t('Página anterior (RePág)')" :aria-label="t('Página anterior')" @click="gotoPage(S.pageIndex - 1)">‹</button>
+    <span class="px-1 tabular-nums text-neutral-500">{{ t("{i} de {n}", { i: S.pageIndex + 1, n: S.pages.length }) }}</span>
+    <button :class="nav" :disabled="S.pageIndex === S.pages.length - 1" :title="t('Página siguiente (AvPág)')" :aria-label="t('Página siguiente')" @click="gotoPage(S.pageIndex + 1)">›</button>
     <div class="w-px h-4 mx-1 bg-neutral-300" />
     <div class="flex items-end gap-px overflow-x-auto self-stretch pt-0.5">
       <div
@@ -50,11 +51,11 @@ const nav = "w-6 h-6 grid place-items-center rounded hover:bg-neutral-200 disabl
         <button
           v-if="S.pages.length > 1"
           class="w-4 h-4 grid place-items-center rounded text-neutral-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-neutral-300 hover:text-neutral-700"
-          :title="`Eliminar ${p.name}`" :aria-label="`Eliminar ${p.name}`"
+          :title="t('Eliminar {name}', { name: p.name })" :aria-label="t('Eliminar {name}', { name: p.name })"
           @click.stop="remove(i)"
         >×</button>
       </div>
     </div>
-    <button :class="nav" title="Agregar página" aria-label="Agregar página" @click="addPage()">+</button>
+    <button :class="nav" :title="t('Agregar página')" :aria-label="t('Agregar página')" @click="addPage()">+</button>
   </div>
 </template>

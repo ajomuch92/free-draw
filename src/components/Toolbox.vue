@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { state as S, setTool, type Tool } from "../store";
+import { t } from "../i18n";
 
 const tools: { id: Tool; label: string; key: string; icon: string }[] = [
   { id: "pick", label: "Selección", key: "Espacio", icon: "M5 3l13 7-6 1.5L9 18z" },
@@ -19,18 +20,18 @@ const tools: { id: Tool; label: string; key: string; icon: string }[] = [
 
 <template>
   <nav class="w-11 shrink-0 flex flex-col items-center gap-0.5 py-1.5 bg-neutral-100 border-r border-neutral-300">
-    <template v-for="(t, i) in tools" :key="t.id">
+    <template v-for="(tool, i) in tools" :key="tool.id">
       <div v-if="i === 4 || i === 10 || i === 11" class="w-7 h-px my-1 bg-neutral-300" />
       <button
         class="w-9 h-9 grid place-items-center rounded transition-colors"
-        :class="S.tool === t.id ? 'bg-blue-100 ring-1 ring-blue-400 text-blue-800' : 'text-neutral-700 hover:bg-neutral-200'"
-        :title="t.key ? `${t.label} (${t.key})` : t.label"
-        :aria-label="t.label"
-        :aria-pressed="S.tool === t.id"
-        @click="setTool(t.id)"
+        :class="S.tool === tool.id ? 'bg-blue-100 ring-1 ring-blue-400 text-blue-800' : 'text-neutral-700 hover:bg-neutral-200'"
+        :title="tool.key ? `${t(tool.label)} (${t(tool.key)})` : t(tool.label)"
+        :aria-label="t(tool.label)"
+        :aria-pressed="S.tool === tool.id"
+        @click="setTool(tool.id)"
       >
         <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
-          <path :d="t.icon" :fill="t.id === 'pick' || t.id === 'shape' ? 'currentColor' : 'none'" />
+          <path :d="tool.icon" :fill="tool.id === 'pick' || tool.id === 'shape' ? 'currentColor' : 'none'" />
         </svg>
       </button>
     </template>

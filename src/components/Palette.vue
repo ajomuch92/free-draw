@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { HueyRoot, SaturationArea, HueSlider, HexInput, ColorPreview, hueyColor } from "@hueycolor/vue";
 import { applyStyle } from "../store";
+import { t } from "../i18n";
 
 // Close to CorelDRAW's default CMYK palette.
 const colors = [
@@ -43,10 +44,10 @@ function pick(e: MouseEvent, c: string) {
 </script>
 
 <template>
-  <aside class="w-6 shrink-0 flex flex-col gap-px p-0.5 overflow-y-auto overflow-x-hidden bg-neutral-100 border-l border-neutral-300" title="Clic: relleno · Clic derecho: contorno">
+  <aside class="w-6 shrink-0 flex flex-col gap-px p-0.5 overflow-y-auto overflow-x-hidden bg-neutral-100 border-l border-neutral-300" :title="t('Clic: relleno · Clic derecho: contorno')">
     <button
       class="w-5 h-4 shrink-0 bg-white border border-neutral-400 grid place-items-center"
-      aria-label="Sin color"
+      :aria-label="t('Sin color')"
       @mousedown.prevent="pick($event, 'none')"
       @contextmenu.prevent
     >
@@ -68,18 +69,18 @@ function pick(e: MouseEvent, c: string) {
       class="w-5 h-4 shrink-0 border border-neutral-400 hover:scale-125 hover:z-10 transition-transform"
       :style="{ background: c }"
       :aria-label="c"
-      :title="`${c} · Mayús+clic: quitar`"
+      :title="`${c} · ${t('Mayús+clic: quitar')}`"
       @mousedown.prevent="pick($event, c)"
       @contextmenu.prevent
     />
     <button
       class="w-5 h-4 shrink-0 border border-dashed border-neutral-500 text-[11px] leading-none text-neutral-600 hover:bg-neutral-200"
-      title="Agregar color personalizado" aria-label="Agregar color personalizado" :aria-expanded="picker"
+      :title="t('Agregar color personalizado')" :aria-label="t('Agregar color personalizado')" :aria-expanded="picker"
       @click="picker = !picker"
     >+</button>
   </aside>
 
-  <div v-if="picker" class="fixed right-8 bottom-10 z-50 w-56 p-2 flex flex-col gap-2 bg-white border border-neutral-300 shadow-lg text-xs" role="dialog" aria-label="Color personalizado">
+  <div v-if="picker" class="fixed right-8 bottom-10 z-50 w-56 p-2 flex flex-col gap-2 bg-white border border-neutral-300 shadow-lg text-xs" role="dialog" :aria-label="t('Color personalizado')">
     <HueyRoot v-model="draft">
       <SaturationArea />
       <HueSlider />
@@ -89,8 +90,8 @@ function pick(e: MouseEvent, c: string) {
       </div>
     </HueyRoot>
     <div class="flex justify-end gap-1">
-      <button class="px-2 h-6 rounded hover:bg-neutral-200" @click="picker = false">Cancelar</button>
-      <button class="px-2 h-6 rounded bg-blue-600 text-white hover:bg-blue-700" @click="addCustom">Agregar</button>
+      <button class="px-2 h-6 rounded hover:bg-neutral-200" @click="picker = false">{{ t('Cancelar') }}</button>
+      <button class="px-2 h-6 rounded bg-blue-600 text-white hover:bg-blue-700" @click="addCustom">{{ t('Agregar') }}</button>
     </div>
   </div>
 </template>

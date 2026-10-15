@@ -1,6 +1,7 @@
 import { state, selected, makeShape, commit, type Shape, type SubPath, type PNode } from "./store";
 import { convertToCurves, setWorldPaths, toWorld, isCurvable } from "./paths";
 import { isTauri, tell } from "./files";
+import { t } from "./i18n";
 
 // Text outlines come from the installed Windows fonts, read through the Tauri fs plugin.
 // ponytail: Windows-only font lookup by file name; use a font-matching crate for macOS/Linux
@@ -92,7 +93,7 @@ async function textToCurves(texts: Shape[]) {
 export async function toCurves() {
   const texts = selected.value.filter((s) => s.type === "text");
   const shapes = selected.value.filter((s) => isCurvable(s) && s.type !== "path");
-  if (texts.length && !isTauri) await tell("Convertir texto a curvas solo está disponible en la app de escritorio (usa las fuentes de Windows).");
+  if (texts.length && !isTauri) await tell(t("Convertir texto a curvas solo está disponible en la app de escritorio (usa las fuentes de Windows)."));
   if (shapes.length) convertToCurves(shapes);
   if (!texts.length || !isTauri) return;
   try {
@@ -100,6 +101,6 @@ export async function toCurves() {
     state.selection = [...state.selection.filter((id) => state.shapes.some((s) => s.id === id)), ...made.map((m) => m.id)];
     commit();
   } catch (e) {
-    await tell(`No se pudo leer la fuente: ${e}`);
+    await tell(t("No se pudo leer la fuente: {e}", { e: String(e) }));
   }
 }

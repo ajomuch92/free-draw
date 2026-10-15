@@ -11,6 +11,7 @@ import {
 import { toCurves } from "../fonts";
 import { group, ungroup, canUngroup } from "../arrange";
 import { applySampled, sampleScreen, canPickScreen } from "../eyedropper";
+import { t } from "../i18n";
 
 const frame = computed(() => selectionFrame());
 const one = computed(() => (selected.value.length === 1 ? selected.value[0] : null));
@@ -83,7 +84,7 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
     <!-- Eyedropper -->
     <template v-if="S.tool === 'eyedropper'">
       <span class="flex items-center gap-1.5">
-        Muestra
+        {{ t('Muestra') }}
         <span
           class="w-8 h-5 border border-neutral-400 rounded-sm"
           :style="{ background: S.sampled ?? 'repeating-linear-gradient(45deg,#fff 0 3px,#ddd 3px 6px)' }"
@@ -91,64 +92,64 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
         <span class="w-14 font-mono tabular-nums">{{ S.sampled ?? "—" }}</span>
       </span>
       <div class="flex gap-0.5">
-        <button :class="btn" :disabled="!S.sampled" title="Rellenar la selección (o los objetos nuevos) con la muestra" @click="applySampled('fill')">Aplicar relleno</button>
-        <button :class="btn" :disabled="!S.sampled" title="Usar la muestra como contorno" @click="applySampled('stroke')">Aplicar contorno</button>
+        <button :class="btn" :disabled="!S.sampled" :title="t('Rellenar la selección (o los objetos nuevos) con la muestra')" @click="applySampled('fill')">{{ t('Aplicar relleno') }}</button>
+        <button :class="btn" :disabled="!S.sampled" :title="t('Usar la muestra como contorno')" @click="applySampled('stroke')">{{ t('Aplicar contorno') }}</button>
       </div>
-      <button v-if="canPickScreen" :class="btn" title="Tomar un color de cualquier parte de la pantalla, incluso fuera de la ventana" @click="sampleScreen">Tomar de la pantalla</button>
-      <span class="text-neutral-500">Clic en el dibujo para tomar un color; si hay objetos seleccionados se aplica como relleno (Shift o clic derecho: contorno).</span>
+      <button v-if="canPickScreen" :class="btn" :title="t('Tomar un color de cualquier parte de la pantalla, incluso fuera de la ventana')" @click="sampleScreen">{{ t('Tomar de la pantalla') }}</button>
+      <span class="text-neutral-500">{{ t('Clic en el dibujo para tomar un color; si hay objetos seleccionados se aplica como relleno (Shift o clic derecho: contorno).') }}</span>
     </template>
 
     <template v-else-if="S.tool === 'dimension'">
       <div class="flex gap-0.5">
-        <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'parallel')" title="Cota paralela" @click="S.dimMode = 'parallel'">Paralela</button>
-        <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'hv')" title="Cota horizontal o vertical" @click="S.dimMode = 'hv'">Horizontal/vertical</button>
-        <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'angular')" title="Cota angular" @click="S.dimMode = 'angular'">Angular</button>
+        <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'parallel')" :title="t('Cota paralela')" @click="S.dimMode = 'parallel'">{{ t('Paralela') }}</button>
+        <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'hv')" :title="t('Cota horizontal o vertical')" @click="S.dimMode = 'hv'">{{ t('Horizontal/vertical') }}</button>
+        <button class="px-2 h-6 rounded-sm border" :class="on(S.dimMode === 'angular')" :title="t('Cota angular')" @click="S.dimMode = 'angular'">{{ t('Angular') }}</button>
       </div>
-      <label class="flex items-center gap-1">Decimales
+      <label class="flex items-center gap-1">{{ t('Decimales') }}
         <select :value="S.dimDefaults.decimals" @change="S.dimDefaults.decimals = num($event)">
           <option v-for="d in 4" :key="d" :value="d - 1">{{ d - 1 }}</option>
         </select>
       </label>
-      <label class="flex items-center gap-1"><input type="checkbox" class="!h-auto" :checked="S.dimDefaults.units" @change="S.dimDefaults.units = ($event.target as HTMLInputElement).checked" /> Mostrar unidades</label>
+      <label class="flex items-center gap-1"><input type="checkbox" class="!h-auto" :checked="S.dimDefaults.units" @change="S.dimDefaults.units = ($event.target as HTMLInputElement).checked" /> {{ t('Mostrar unidades') }}</label>
       <span class="text-neutral-500">
-        {{ S.dimMode === 'angular' ? 'Arrastre desde el vértice al primer lado, clic en el segundo lado y clic para ubicar el arco.' : 'Arrastre entre dos puntos y haga clic para ubicar la cota. Se ajusta a los nodos.' }}
+        {{ S.dimMode === 'angular' ? t('Arrastre desde el vértice al primer lado, clic en el segundo lado y clic para ubicar el arco.') : t('Arrastre entre dos puntos y haga clic para ubicar la cota. Se ajusta a los nodos.') }}
       </span>
     </template>
 
     <!-- Shape tool: node editing -->
     <template v-else-if="editPath">
-      <span class="text-neutral-500 tabular-nums">{{ S.nodeSel.length }} de {{ nodeCount }} nodos</span>
+      <span class="text-neutral-500 tabular-nums">{{ t("{i} de {n} nodos", { i: S.nodeSel.length, n: nodeCount }) }}</span>
       <div class="flex gap-0.5">
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Agregar nodo en el segmento siguiente (doble clic en la curva)" @click="addNodes">+ Nodo</button>
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Eliminar nodos (Supr o doble clic en el nodo)" @click="deleteNodes()">− Nodo</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Agregar nodo en el segmento siguiente (doble clic en la curva)')" @click="addNodes">{{ t('+ Nodo') }}</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Eliminar nodos (Supr o doble clic en el nodo)')" @click="deleteNodes()">{{ t('− Nodo') }}</button>
       </div>
       <div class="flex gap-0.5">
-        <button :class="btn" :disabled="S.nodeSel.length !== 2" title="Unir dos nodos finales" @click="joinNodes">Unir</button>
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Separar la curva en los nodos" @click="breakAtNodes">Separar</button>
-        <button :class="btn" title="Cerrar o abrir el trazado" @click="toggleClosed">Cerrar/abrir</button>
+        <button :class="btn" :disabled="S.nodeSel.length !== 2" :title="t('Unir dos nodos finales')" @click="joinNodes">{{ t('Unir') }}</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Separar la curva en los nodos')" @click="breakAtNodes">{{ t('Separar') }}</button>
+        <button :class="btn" :title="t('Cerrar o abrir el trazado')" @click="toggleClosed">{{ t('Cerrar/abrir') }}</button>
       </div>
       <div class="flex gap-0.5">
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Convertir el segmento en línea" @click="toLine">A línea</button>
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Convertir el segmento en curva" @click="toCurve">A curva</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Convertir el segmento en línea')" @click="toLine">{{ t('A línea') }}</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Convertir el segmento en curva')" @click="toCurve">{{ t('A curva') }}</button>
       </div>
       <div class="flex gap-0.5">
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Nodo cúspide: manejadores independientes" @click="setNodeKind('cusp')">Cúspide</button>
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Nodo suave: manejadores alineados" @click="setNodeKind('smooth')">Suave</button>
-        <button :class="btn" :disabled="!S.nodeSel.length" title="Nodo simétrico: manejadores alineados y de igual largo" @click="setNodeKind('symmetric')">Simétrico</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Nodo cúspide: manejadores independientes')" @click="setNodeKind('cusp')">{{ t('Cúspide') }}</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Nodo suave: manejadores alineados')" @click="setNodeKind('smooth')">{{ t('Suave') }}</button>
+        <button :class="btn" :disabled="!S.nodeSel.length" :title="t('Nodo simétrico: manejadores alineados y de igual largo')" @click="setNodeKind('symmetric')">{{ t('Simétrico') }}</button>
       </div>
     </template>
 
     <!-- No selection: page settings -->
     <template v-else-if="!frame">
-      <select :value="S.page.size" aria-label="Tamaño de página" @change="setPage(($event.target as HTMLSelectElement).value, landscape)">
+      <select :value="S.page.size" :aria-label="t('Tamaño de página')" @change="setPage(($event.target as HTMLSelectElement).value, landscape)">
         <option v-for="(_, k) in PAGE_SIZES" :key="k" :value="k">{{ k }}</option>
       </select>
       <span class="tabular-nums">{{ r2(S.page.w) }} × {{ r2(S.page.h) }} mm</span>
       <div class="flex gap-0.5">
-        <button class="px-2 h-6 rounded-sm border" :class="!landscape ? 'bg-blue-100 border-blue-400' : 'border-neutral-300 bg-white'" @click="setPage(S.page.size, false)">Vertical</button>
-        <button class="px-2 h-6 rounded-sm border" :class="landscape ? 'bg-blue-100 border-blue-400' : 'border-neutral-300 bg-white'" @click="setPage(S.page.size, true)">Horizontal</button>
+        <button class="px-2 h-6 rounded-sm border" :class="!landscape ? 'bg-blue-100 border-blue-400' : 'border-neutral-300 bg-white'" @click="setPage(S.page.size, false)">{{ t('Vertical') }}</button>
+        <button class="px-2 h-6 rounded-sm border" :class="landscape ? 'bg-blue-100 border-blue-400' : 'border-neutral-300 bg-white'" @click="setPage(S.page.size, true)">{{ t('Horizontal') }}</button>
       </div>
-      <span class="text-neutral-500">Unidades: milímetros</span>
+      <span class="text-neutral-500">{{ t('Unidades: milímetros') }}</span>
     </template>
 
     <!-- Selection: transform -->
@@ -160,15 +161,15 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
         <input id="pb-y" type="number" step="0.1" :value="fy" class="text-[11px] !h-[17px]" @change="setFrame({ cy: S.page.h - num($event) })" />
       </div>
       <div class="grid grid-cols-[auto_4.5rem] gap-x-1 items-center leading-none">
-        <label for="pb-w">An:</label>
+        <label for="pb-w">{{ t('An:') }}</label>
         <input id="pb-w" type="number" step="0.1" min="0" :value="r2(frame.w)" class="text-[11px] !h-[17px]" @change="setSize('w', num($event))" />
-        <label for="pb-h">Al:</label>
+        <label for="pb-h">{{ t('Al:') }}</label>
         <input id="pb-h" type="number" step="0.1" min="0" :value="r2(frame.h)" class="text-[11px] !h-[17px]" @change="setSize('h', num($event))" />
       </div>
       <button
         class="w-6 h-6 grid place-items-center rounded-sm border"
         :class="lockRatio ? 'bg-blue-100 border-blue-400' : 'border-neutral-300 bg-white'"
-        :title="lockRatio ? 'Proporción bloqueada' : 'Proporción libre'"
+        :title="lockRatio ? t('Proporción bloqueada') : t('Proporción libre')"
         :aria-pressed="lockRatio"
         @click="lockRatio = !lockRatio"
       >
@@ -179,17 +180,17 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
       </button>
 
       <div class="w-px h-6 bg-neutral-300" />
-      <label class="flex items-center gap-1" title="Ángulo de rotación">
+      <label class="flex items-center gap-1" :title="t('Ángulo de rotación')">
         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-3-6.2M20 4v5h-5" /></svg>
-        <input type="number" step="1" :value="angle" class="w-14" aria-label="Ángulo" @change="setFrame({ rotation: 360 - num($event) })" />°
+        <input type="number" step="1" :value="angle" class="w-14" :aria-label="t('Ángulo')" @change="setFrame({ rotation: 360 - num($event) })" />°
       </label>
-      <button class="w-7 h-6 rounded-sm border border-neutral-300 bg-white hover:bg-neutral-100" title="Reflejar horizontalmente" aria-label="Reflejar horizontalmente" @click="flip('x')">⇋</button>
-      <button class="w-7 h-6 rounded-sm border border-neutral-300 bg-white hover:bg-neutral-100 rotate-90" title="Reflejar verticalmente" aria-label="Reflejar verticalmente" @click="flip('y')">⇋</button>
+      <button class="w-7 h-6 rounded-sm border border-neutral-300 bg-white hover:bg-neutral-100" :title="t('Reflejar horizontalmente')" :aria-label="t('Reflejar horizontalmente')" @click="flip('x')">⇋</button>
+      <button class="w-7 h-6 rounded-sm border border-neutral-300 bg-white hover:bg-neutral-100 rotate-90" :title="t('Reflejar verticalmente')" :aria-label="t('Reflejar verticalmente')" @click="flip('y')">⇋</button>
 
       <div class="w-px h-6 bg-neutral-300" />
-      <label class="flex items-center gap-1" title="Ancho de contorno">
+      <label class="flex items-center gap-1" :title="t('Ancho de contorno')">
         <svg viewBox="0 0 24 24" class="w-4 h-4" stroke="currentColor"><path d="M3 6h18" stroke-width="1" /><path d="M3 12h18" stroke-width="2.5" /><path d="M3 19h18" stroke-width="4" /></svg>
-        <select :value="selected[0]?.strokeWidth" aria-label="Ancho de contorno" @change="applyStyle({ strokeWidth: num($event) })">
+        <select :value="selected[0]?.strokeWidth" :aria-label="t('Ancho de contorno')" @change="applyStyle({ strokeWidth: num($event) })">
           <option v-if="!widths.includes(selected[0]?.strokeWidth)" :value="selected[0]?.strokeWidth">{{ r2(selected[0]?.strokeWidth ?? 0) }} mm</option>
           <option v-for="w in widths" :key="w" :value="w">{{ w }} mm</option>
         </select>
@@ -197,49 +198,49 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
 
       <template v-if="one?.type === 'rect'">
         <div class="w-px h-6 bg-neutral-300" />
-        <label class="flex items-center gap-1">Esquinas: <input type="number" min="0" step="0.5" :value="one.radius ?? 0" class="w-14" @change="setShapeProp('radius', num($event))" /> mm</label>
+        <label class="flex items-center gap-1">{{ t('Esquinas:') }} <input type="number" min="0" step="0.5" :value="one.radius ?? 0" class="w-14" @change="setShapeProp('radius', num($event))" /> mm</label>
       </template>
       <template v-if="one?.type === 'polygon'">
         <div class="w-px h-6 bg-neutral-300" />
-        <label class="flex items-center gap-1">Lados: <input type="number" min="3" max="50" :value="one.sides" class="w-12" @change="setShapeProp('sides', num($event))" /></label>
+        <label class="flex items-center gap-1">{{ t('Lados:') }} <input type="number" min="3" max="50" :value="one.sides" class="w-12" @change="setShapeProp('sides', num($event))" /></label>
       </template>
       <template v-if="one?.type === 'text'">
         <div class="w-px h-6 bg-neutral-300" />
-        <select :value="one.fontFamily" aria-label="Fuente" class="w-36" @change="setFont({ fontFamily: ($event.target as HTMLSelectElement).value })">
+        <select :value="one.fontFamily" :aria-label="t('Fuente')" class="w-36" @change="setFont({ fontFamily: ($event.target as HTMLSelectElement).value })">
           <option v-for="f in FONTS" :key="f" :value="f" :style="{ fontFamily: f }">{{ f }}</option>
         </select>
         <label class="flex items-center gap-1">
-          <input type="number" min="1" step="1" :value="r2((one.fontSize ?? 0) / PT)" class="w-14" aria-label="Tamaño de fuente" @change="setFont({ fontSize: num($event) * PT })" /> pt
+          <input type="number" min="1" step="1" :value="r2((one.fontSize ?? 0) / PT)" class="w-14" :aria-label="t('Tamaño de fuente')" @change="setFont({ fontSize: num($event) * PT })" /> pt
         </label>
       </template>
       <template v-if="one?.type === 'dimension'">
         <div class="w-px h-6 bg-neutral-300" />
-        <label class="flex items-center gap-1">Decimales
+        <label class="flex items-center gap-1">{{ t('Decimales') }}
           <select :value="dimTarget.decimals" @change="setDim({ decimals: num($event) })">
             <option v-for="d in 4" :key="d" :value="d - 1">{{ d - 1 }}</option>
           </select>
         </label>
-        <label class="flex items-center gap-1"><input type="checkbox" class="!h-auto" :checked="dimTarget.units" @change="setDim({ units: ($event.target as HTMLInputElement).checked })" /> Unidades</label>
-        <label class="flex items-center gap-1">Texto
-          <input type="number" min="1" step="1" :value="r2((one.fontSize ?? 0) / PT)" class="w-12" aria-label="Tamaño del texto de la cota" @change="setFont({ fontSize: num($event) * PT })" /> pt
+        <label class="flex items-center gap-1"><input type="checkbox" class="!h-auto" :checked="dimTarget.units" @change="setDim({ units: ($event.target as HTMLInputElement).checked })" /> {{ t('Unidades') }}</label>
+        <label class="flex items-center gap-1">{{ t('Texto') }}
+          <input type="number" min="1" step="1" :value="r2((one.fontSize ?? 0) / PT)" class="w-12" :aria-label="t('Tamaño del texto de la cota')" @change="setFont({ fontSize: num($event) * PT })" /> pt
         </label>
       </template>
 
       <template v-if="selected.length > 1 || canUngroup()">
         <div class="w-px h-6 bg-neutral-300" />
-        <button v-if="selected.length > 1" :class="btn" title="Agrupar (Ctrl+G)" @click="group">Agrupar</button>
-        <button v-if="canUngroup()" :class="btn" title="Desagrupar (Ctrl+U)" @click="ungroup()">Desagrupar</button>
+        <button v-if="selected.length > 1" :class="btn" :title="t('Agrupar (Ctrl+G)')" @click="group">{{ t('Agrupar') }}</button>
+        <button v-if="canUngroup()" :class="btn" :title="t('Desagrupar (Ctrl+U)')" @click="ungroup()">{{ t('Desagrupar') }}</button>
       </template>
       <template v-if="canConvert || canBreak || curvableCount > 1">
         <div class="w-px h-6 bg-neutral-300" />
-        <button v-if="canConvert" :class="btn" title="Convertir a curvas (Ctrl+Q)" @click="toCurves">Convertir a curvas</button>
-        <button v-if="curvableCount > 1" :class="btn" title="Combinar (Ctrl+L)" @click="combine">Combinar</button>
-        <button v-if="canBreak" :class="btn" title="Separar (Ctrl+K)" @click="breakApart">Separar</button>
+        <button v-if="canConvert" :class="btn" :title="t('Convertir a curvas (Ctrl+Q)')" @click="toCurves">{{ t('Convertir a curvas') }}</button>
+        <button v-if="curvableCount > 1" :class="btn" :title="t('Combinar (Ctrl+L)')" @click="combine">{{ t('Combinar') }}</button>
+        <button v-if="canBreak" :class="btn" :title="t('Separar (Ctrl+K)')" @click="breakApart">{{ t('Separar') }}</button>
       </template>
       <template v-if="curvableCount > 1">
         <div class="w-px h-6 bg-neutral-300" />
         <div class="flex gap-0.5">
-          <button v-for="b in shaping" :key="b.op" :class="btn" :title="b.title" @click="booleanOp(b.op)">{{ b.label }}</button>
+          <button v-for="b in shaping" :key="b.op" :class="btn" :title="t(b.title)" @click="booleanOp(b.op)">{{ t(b.label) }}</button>
         </div>
       </template>
     </template>

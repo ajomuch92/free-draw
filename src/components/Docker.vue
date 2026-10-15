@@ -5,6 +5,7 @@ import {
   type Shape, type Gradient, type Style,
 } from "../store";
 import { group, ungroup, canUngroup, align, distribute } from "../arrange";
+import { t } from "../i18n";
 
 // With nothing selected, edits go to the defaults for new objects (CorelDRAW behaviour).
 const target = computed<Style>(() => selected.value[0] ?? S.defaults);
@@ -88,89 +89,89 @@ const many = computed(() => new Set(selected.value.map((s) => s.groups?.[0] ?? s
     <!-- Object properties -->
     <details open class="border-b border-neutral-300">
       <summary class="px-2 py-1.5 font-semibold bg-neutral-200/70 border-b border-neutral-300 cursor-default select-none">
-        Propiedades {{ selected.length ? "del objeto" : "predeterminadas" }}
+        {{ selected.length ? t("Propiedades del objeto") : t("Propiedades predeterminadas") }}
       </summary>
       <div class="p-2 grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1.5 items-center">
-        <label for="dk-fill">Relleno</label>
+        <label for="dk-fill">{{ t('Relleno') }}</label>
         <select id="dk-fill" :class="input" :value="fillKind" @change="setFillKind(val($event) as FillKind)">
-          <option value="none">Sin relleno</option>
-          <option value="solid">Uniforme</option>
-          <option value="linear">Degradado lineal</option>
-          <option value="radial">Degradado radial</option>
+          <option value="none">{{ t('Sin relleno') }}</option>
+          <option value="solid">{{ t('Uniforme') }}</option>
+          <option value="linear">{{ t('Degradado lineal') }}</option>
+          <option value="radial">{{ t('Degradado radial') }}</option>
         </select>
 
         <template v-if="fillKind === 'solid'">
-          <span>Color</span>
-          <input type="color" class="w-10 h-5 p-0 border border-neutral-300" aria-label="Color de relleno" :value="solid" @change="applyStyle({ fill: val($event) })" />
+          <span>{{ t('Color') }}</span>
+          <input type="color" class="w-10 h-5 p-0 border border-neutral-300" :aria-label="t('Color de relleno')" :value="solid" @change="applyStyle({ fill: val($event) })" />
         </template>
         <template v-else-if="target.gradient">
-          <span>Colores</span>
+          <span>{{ t('Colores') }}</span>
           <div class="flex items-center gap-1.5">
-            <input type="color" class="w-8 h-5 p-0 border border-neutral-300" aria-label="Color inicial" :value="target.gradient.from" @change="setGradient({ from: val($event) })" />
+            <input type="color" class="w-8 h-5 p-0 border border-neutral-300" :aria-label="t('Color inicial')" :value="target.gradient.from" @change="setGradient({ from: val($event) })" />
             <div class="flex-1 h-3 border border-neutral-300" :style="{ background: `linear-gradient(90deg, ${target.gradient.from}, ${target.gradient.to})` }" />
-            <input type="color" class="w-8 h-5 p-0 border border-neutral-300" aria-label="Color final" :value="target.gradient.to" @change="setGradient({ to: val($event) })" />
+            <input type="color" class="w-8 h-5 p-0 border border-neutral-300" :aria-label="t('Color final')" :value="target.gradient.to" @change="setGradient({ to: val($event) })" />
           </div>
           <template v-if="target.gradient.type === 'linear'">
-            <label for="dk-ang">Ángulo</label>
+            <label for="dk-ang">{{ t('Ángulo') }}</label>
             <div class="flex items-center gap-1">
               <input id="dk-ang" type="number" step="15" class="w-16 px-1" :class="input" :value="target.gradient.angle" @change="setGradient({ angle: parseFloat(val($event)) || 0 })" /> °
             </div>
           </template>
         </template>
 
-        <span>Contorno</span>
+        <span>{{ t('Contorno') }}</span>
         <div class="flex items-center gap-1.5">
           <input
-            type="color" class="w-8 h-5 p-0 border border-neutral-300 disabled:opacity-30" aria-label="Color de contorno"
+            type="color" class="w-8 h-5 p-0 border border-neutral-300 disabled:opacity-30" :aria-label="t('Color de contorno')"
             :value="target.stroke === 'none' ? '#000000' : target.stroke" :disabled="target.stroke === 'none'"
             @change="applyStyle({ stroke: val($event) })"
           />
-          <label class="flex items-center gap-1"><input type="checkbox" :checked="target.stroke !== 'none'" @change="applyStyle({ stroke: ($event.target as HTMLInputElement).checked ? '#000000' : 'none' })" /> Activo</label>
+          <label class="flex items-center gap-1"><input type="checkbox" :checked="target.stroke !== 'none'" @change="applyStyle({ stroke: ($event.target as HTMLInputElement).checked ? '#000000' : 'none' })" /> {{ t('Activo') }}</label>
         </div>
 
-        <label for="dk-w">Ancho</label>
+        <label for="dk-w">{{ t('Ancho') }}</label>
         <div class="flex items-center gap-1">
           <input id="dk-w" type="number" min="0" step="0.05" class="w-16 px-1" :class="input" :value="target.strokeWidth" @change="applyStyle({ strokeWidth: Math.max(0, parseFloat(val($event)) || 0) })" /> mm
         </div>
 
-        <label for="dk-dash">Estilo</label>
+        <label for="dk-dash">{{ t('Estilo') }}</label>
         <select id="dk-dash" :class="input" :value="target.dash" @change="applyStyle({ dash: val($event) as 'solid' })">
-          <option value="solid">Sólido</option>
-          <option value="dash">Discontinuo</option>
-          <option value="dot">Punteado</option>
+          <option value="solid">{{ t('Sólido') }}</option>
+          <option value="dash">{{ t('Discontinuo') }}</option>
+          <option value="dot">{{ t('Punteado') }}</option>
         </select>
 
-        <label for="dk-cap">Extremos</label>
+        <label for="dk-cap">{{ t('Extremos') }}</label>
         <select id="dk-cap" :class="input" :value="target.cap ?? 'butt'" @change="applyStyle({ cap: val($event) as 'butt' })">
-          <option value="butt">Planos</option>
-          <option value="round">Redondeados</option>
-          <option value="square">Cuadrados</option>
+          <option value="butt">{{ t('Planos') }}</option>
+          <option value="round">{{ t('Redondeados') }}</option>
+          <option value="square">{{ t('Cuadrados') }}</option>
         </select>
 
-        <label for="dk-join">Esquinas</label>
+        <label for="dk-join">{{ t('Esquinas') }}</label>
         <select id="dk-join" :class="input" :value="target.join ?? 'round'" @change="applyStyle({ join: val($event) as 'round' })">
-          <option value="miter">En punta</option>
-          <option value="round">Redondeadas</option>
-          <option value="bevel">Biseladas</option>
+          <option value="miter">{{ t('En punta') }}</option>
+          <option value="round">{{ t('Redondeadas') }}</option>
+          <option value="bevel">{{ t('Biseladas') }}</option>
         </select>
 
-        <span>Flechas</span>
-        <div class="flex items-center gap-1" title="Solo en curvas y líneas abiertas">
-          <select :class="input" class="flex-1 min-w-0" aria-label="Flecha inicial" :value="target.arrowStart ?? 'none'" @change="applyStyle({ arrowStart: val($event) as 'none' })">
-            <option value="none">— inicio</option>
-            <option value="triangle">◀ triángulo</option>
-            <option value="open">‹ abierta</option>
-            <option value="dot">● punto</option>
+        <span>{{ t('Flechas') }}</span>
+        <div class="flex items-center gap-1" :title="t('Solo en curvas y líneas abiertas')">
+          <select :class="input" class="flex-1 min-w-0" :aria-label="t('Flecha inicial')" :value="target.arrowStart ?? 'none'" @change="applyStyle({ arrowStart: val($event) as 'none' })">
+            <option value="none">{{ t('— inicio') }}</option>
+            <option value="triangle">{{ t('◀ triángulo') }}</option>
+            <option value="open">{{ t('‹ abierta') }}</option>
+            <option value="dot">{{ t('● punto') }}</option>
           </select>
-          <select :class="input" class="flex-1 min-w-0" aria-label="Flecha final" :value="target.arrowEnd ?? 'none'" @change="applyStyle({ arrowEnd: val($event) as 'none' })">
-            <option value="none">fin —</option>
-            <option value="triangle">triángulo ▶</option>
-            <option value="open">abierta ›</option>
-            <option value="dot">punto ●</option>
+          <select :class="input" class="flex-1 min-w-0" :aria-label="t('Flecha final')" :value="target.arrowEnd ?? 'none'" @change="applyStyle({ arrowEnd: val($event) as 'none' })">
+            <option value="none">{{ t('fin —') }}</option>
+            <option value="triangle">{{ t('triángulo ▶') }}</option>
+            <option value="open">{{ t('abierta ›') }}</option>
+            <option value="dot">{{ t('punto ●') }}</option>
           </select>
         </div>
 
-        <label for="dk-op">Opacidad</label>
+        <label for="dk-op">{{ t('Opacidad') }}</label>
         <div class="flex items-center gap-1">
           <input id="dk-op" type="range" min="0" max="100" class="flex-1" :value="Math.round(target.opacity * 100)" @change="applyStyle({ opacity: parseFloat(val($event)) / 100 })" />
           <span class="w-8 text-right tabular-nums">{{ Math.round(target.opacity * 100) }}%</span>
@@ -180,35 +181,35 @@ const many = computed(() => new Set(selected.value.map((s) => s.groups?.[0] ?? s
 
     <!-- Align & distribute -->
     <details open class="border-b border-neutral-300">
-      <summary class="px-2 py-1.5 font-semibold bg-neutral-200/70 border-b border-neutral-300 cursor-default select-none">Alinear y distribuir</summary>
+      <summary class="px-2 py-1.5 font-semibold bg-neutral-200/70 border-b border-neutral-300 cursor-default select-none">{{ t('Alinear y distribuir') }}</summary>
       <div class="p-2 flex flex-col gap-1.5">
         <div class="flex items-center gap-1">
-          <button :class="icon" :disabled="many < 2" title="Alinear a la izquierda (L)" aria-label="Alinear a la izquierda" @click="align(['left'])">
+          <button :class="icon" :disabled="many < 2" :title="t('Alinear a la izquierda (L)')" :aria-label="t('Alinear a la izquierda')" @click="align(['left'])">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><path d="M2 1v14" stroke="currentColor" /><rect x="3" y="3" width="9" height="3" fill="currentColor" /><rect x="3" y="9" width="6" height="3" fill="currentColor" /></svg>
           </button>
-          <button :class="icon" :disabled="many < 2" title="Centrar verticalmente (C)" aria-label="Alinear centros en vertical" @click="align(['centerX'])">
+          <button :class="icon" :disabled="many < 2" :title="t('Centrar verticalmente (C)')" :aria-label="t('Alinear centros en vertical')" @click="align(['centerX'])">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><path d="M8 1v14" stroke="currentColor" /><rect x="3" y="3" width="10" height="3" fill="currentColor" /><rect x="5" y="9" width="6" height="3" fill="currentColor" /></svg>
           </button>
-          <button :class="icon" :disabled="many < 2" title="Alinear a la derecha (R)" aria-label="Alinear a la derecha" @click="align(['right'])">
+          <button :class="icon" :disabled="many < 2" :title="t('Alinear a la derecha (R)')" :aria-label="t('Alinear a la derecha')" @click="align(['right'])">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><path d="M14 1v14" stroke="currentColor" /><rect x="4" y="3" width="9" height="3" fill="currentColor" /><rect x="7" y="9" width="6" height="3" fill="currentColor" /></svg>
           </button>
           <div class="w-px h-5 mx-0.5 bg-neutral-300" />
-          <button :class="icon" :disabled="many < 2" title="Alinear arriba (T)" aria-label="Alinear arriba" @click="align(['top'])">
+          <button :class="icon" :disabled="many < 2" :title="t('Alinear arriba (T)')" :aria-label="t('Alinear arriba')" @click="align(['top'])">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><path d="M1 2h14" stroke="currentColor" /><rect x="3" y="3" width="3" height="9" fill="currentColor" /><rect x="9" y="3" width="3" height="6" fill="currentColor" /></svg>
           </button>
-          <button :class="icon" :disabled="many < 2" title="Centrar horizontalmente (E)" aria-label="Alinear centros en horizontal" @click="align(['centerY'])">
+          <button :class="icon" :disabled="many < 2" :title="t('Centrar horizontalmente (E)')" :aria-label="t('Alinear centros en horizontal')" @click="align(['centerY'])">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><path d="M1 8h14" stroke="currentColor" /><rect x="3" y="3" width="3" height="10" fill="currentColor" /><rect x="9" y="5" width="3" height="6" fill="currentColor" /></svg>
           </button>
-          <button :class="icon" :disabled="many < 2" title="Alinear abajo (B)" aria-label="Alinear abajo" @click="align(['bottom'])">
+          <button :class="icon" :disabled="many < 2" :title="t('Alinear abajo (B)')" :aria-label="t('Alinear abajo')" @click="align(['bottom'])">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><path d="M1 14h14" stroke="currentColor" /><rect x="3" y="4" width="3" height="9" fill="currentColor" /><rect x="9" y="7" width="3" height="6" fill="currentColor" /></svg>
           </button>
         </div>
         <div class="flex items-center gap-1">
-          <button class="px-2 h-7 rounded border border-neutral-300 bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white" :disabled="!selected.length" title="Centrar en la página (P)" @click="align(['centerX', 'centerY'], true)">Centrar en página</button>
-          <button :class="icon" :disabled="many < 3" title="Distribuir espaciado horizontal" aria-label="Distribuir espaciado horizontal" @click="distribute('x')">
+          <button class="px-2 h-7 rounded border border-neutral-300 bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white" :disabled="!selected.length" :title="t('Centrar en la página (P)')" @click="align(['centerX', 'centerY'], true)">{{ t('Centrar en página') }}</button>
+          <button :class="icon" :disabled="many < 3" :title="t('Distribuir espaciado horizontal')" :aria-label="t('Distribuir espaciado horizontal')" @click="distribute('x')">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><rect x="1" y="4" width="3" height="8" fill="currentColor" /><rect x="6.5" y="4" width="3" height="8" fill="currentColor" /><rect x="12" y="4" width="3" height="8" fill="currentColor" /></svg>
           </button>
-          <button :class="icon" :disabled="many < 3" title="Distribuir espaciado vertical" aria-label="Distribuir espaciado vertical" @click="distribute('y')">
+          <button :class="icon" :disabled="many < 3" :title="t('Distribuir espaciado vertical')" :aria-label="t('Distribuir espaciado vertical')" @click="distribute('y')">
             <svg viewBox="0 0 16 16" class="w-4 h-4"><rect x="4" y="1" width="8" height="3" fill="currentColor" /><rect x="4" y="6.5" width="8" height="3" fill="currentColor" /><rect x="4" y="12" width="8" height="3" fill="currentColor" /></svg>
           </button>
         </div>
@@ -218,18 +219,18 @@ const many = computed(() => new Set(selected.value.map((s) => s.groups?.[0] ?? s
     <!-- Object manager -->
     <section class="flex-1 min-h-40 flex flex-col">
       <h2 class="px-2 py-1.5 font-semibold bg-neutral-200/70 border-b border-neutral-300 flex items-center justify-between">
-        Objetos
+        {{ t('Objetos') }}
         <span class="flex gap-0.5 font-normal">
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="selected.length < 2" title="Agrupar (Ctrl+G)" aria-label="Agrupar" @click="group">⧉</button>
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!canUngroup()" title="Desagrupar (Ctrl+U)" aria-label="Desagrupar" @click="ungroup()">⧈</button>
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" title="Al frente (Shift+RePág)" aria-label="Al frente" @click="toFront">⤒</button>
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" title="Adelante uno (Ctrl+RePág)" aria-label="Adelante uno" @click="forward">↑</button>
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" title="Atrás uno (Ctrl+AvPág)" aria-label="Atrás uno" @click="backward">↓</button>
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" title="Al fondo (Shift+AvPág)" aria-label="Al fondo" @click="toBack">⤓</button>
-          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" title="Eliminar (Supr)" aria-label="Eliminar" @click="del">✕</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="selected.length < 2" :title="t('Agrupar (Ctrl+G)')" :aria-label="t('Agrupar')" @click="group">⧉</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!canUngroup()" :title="t('Desagrupar (Ctrl+U)')" :aria-label="t('Desagrupar')" @click="ungroup()">⧈</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" :title="t('Al frente (Shift+RePág)')" :aria-label="t('Al frente')" @click="toFront">⤒</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" :title="t('Adelante uno (Ctrl+RePág)')" :aria-label="t('Adelante uno')" @click="forward">↑</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" :title="t('Atrás uno (Ctrl+AvPág)')" :aria-label="t('Atrás uno')" @click="backward">↓</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" :title="t('Al fondo (Shift+AvPág)')" :aria-label="t('Al fondo')" @click="toBack">⤓</button>
+          <button class="px-1 rounded hover:bg-neutral-300 disabled:opacity-30" :disabled="!S.selection.length" :title="t('Eliminar (Supr)')" :aria-label="t('Eliminar')" @click="del">✕</button>
         </span>
       </h2>
-      <div class="px-2 py-1 text-neutral-500 border-b border-neutral-200">▾ {{ page.name }} · Capa 1</div>
+      <div class="px-2 py-1 text-neutral-500 border-b border-neutral-200">▾ {{ page.name }} · {{ t("Capa 1") }}</div>
       <ul class="flex-1 overflow-y-auto">
         <template v-for="r in tree" :key="r.kind === 'group' ? `${r.id}-${r.depth}` : r.shape.id">
           <li
@@ -240,7 +241,7 @@ const many = computed(() => new Set(selected.value.map((s) => s.groups?.[0] ?? s
             @click="selectIds($event, r.members.map((x) => x.id))"
           >
             <span class="w-3.5 text-center text-neutral-500">▾</span>
-            <span class="flex-1 truncate">Grupo de {{ r.count }} objetos</span>
+            <span class="flex-1 truncate">{{ t("Grupo de {n} objetos", { n: r.count }) }}</span>
           </li>
           <li
             v-else
@@ -267,16 +268,16 @@ const many = computed(() => new Set(selected.value.map((s) => s.groups?.[0] ?? s
               @keydown.esc="renaming = null"
               @blur="finishRename(r.shape, $event)"
             />
-            <span v-else class="flex-1 truncate" :class="{ 'opacity-40': !r.shape.visible }" :title="TYPE_NAMES[r.shape.type]">{{ r.shape.name }}</span>
-            <button class="w-5 text-center opacity-70 hover:opacity-100" :title="r.shape.visible ? 'Ocultar' : 'Mostrar'" :aria-label="r.shape.visible ? 'Ocultar' : 'Mostrar'" @click.stop="toggle(r.shape, 'visible')">
+            <span v-else class="flex-1 truncate" :class="{ 'opacity-40': !r.shape.visible }" :title="t(TYPE_NAMES[r.shape.type])">{{ r.shape.name }}</span>
+            <button class="w-5 text-center opacity-70 hover:opacity-100" :title="r.shape.visible ? t('Ocultar') : t('Mostrar')" :aria-label="r.shape.visible ? t('Ocultar') : t('Mostrar')" @click.stop="toggle(r.shape, 'visible')">
               {{ r.shape.visible ? "👁" : "–" }}
             </button>
-            <button class="w-5 text-center opacity-70 hover:opacity-100" :title="r.shape.locked ? 'Desbloquear' : 'Bloquear'" :aria-label="r.shape.locked ? 'Desbloquear' : 'Bloquear'" @click.stop="toggle(r.shape, 'locked')">
+            <button class="w-5 text-center opacity-70 hover:opacity-100" :title="r.shape.locked ? t('Desbloquear') : t('Bloquear')" :aria-label="r.shape.locked ? t('Desbloquear') : t('Bloquear')" @click.stop="toggle(r.shape, 'locked')">
               {{ r.shape.locked ? "🔒" : "🔓" }}
             </button>
           </li>
         </template>
-        <li v-if="!tree.length" class="px-4 py-3 text-neutral-400">Sin objetos. Dibuja con las herramientas de la izquierda.</li>
+        <li v-if="!tree.length" class="px-4 py-3 text-neutral-400">{{ t('Sin objetos. Dibuja con las herramientas de la izquierda.') }}</li>
       </ul>
     </section>
   </aside>

@@ -1,14 +1,15 @@
 import { state, uid, resetHistory, zoomPage, makeShape, commit, type Page } from "./store";
+import { t } from "./i18n";
 
 // Desktop (Tauri) gets native dialogs and real files; the browser falls back to downloads.
 export const isTauri = "__TAURI_INTERNALS__" in window;
 
-const DOC_FILTER = { name: "Documento de Free Draw", extensions: ["fdraw"] };
+const docFilter = () => ({ name: t("Documento de Free Draw"), extensions: ["fdraw"] });
 
 export async function ask(text: string) {
   if (!isTauri) return confirm(text);
   const { ask } = await import("@tauri-apps/plugin-dialog");
-  return ask(text, { title: "Free Draw", kind: "warning", okLabel: "Descartar", cancelLabel: "Cancelar" });
+  return ask(text, { title: "Free Draw", kind: "warning", okLabel: t("Descartar"), cancelLabel: t("Cancelar") });
 }
 
 export async function tell(text: string) {
@@ -17,7 +18,7 @@ export async function tell(text: string) {
   await message(text, { title: "Free Draw" });
 }
 
-const confirmDiscard = () => !state.dirty || ask("Hay cambios sin guardar. ¿Descartarlos?");
+const confirmDiscard = () => !state.dirty || ask(t("Hay cambios sin guardar. ¿Descartarlos?"));
 const baseName = (p: string) => p.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, "");
 
 function download(blob: Blob, name: string) {
@@ -51,7 +52,7 @@ async function writeOut(data: string | Uint8Array, name: string, filter: { name:
 
 function load(doc: { app?: string; page?: typeof state.page; pages?: Page[]; shapes?: Page["shapes"]; guides?: typeof state.guides; grid?: typeof state.grid }, name: string, path: string | null) {
   // v1 files had a single page under "shapes"
-  const pages = doc.pages ?? (Array.isArray(doc.shapes) ? [{ id: uid(), name: "Página 1", shapes: doc.shapes }] : null);
+  const pages = doc.pages ?? (Array.isArray(doc.shapes) ? [{ id: uid(), name: t("Página {n}", { n: 1 }), shapes: doc.shapes }] : null);
   if (doc.app !== "free-draw" || !pages?.length) throw new Error("formato");
   state.pages = pages;
   state.pageIndex = 0;
@@ -67,11 +68,11 @@ function load(doc: { app?: string; page?: typeof state.page; pages?: Page[]; sha
 
 export async function newDoc() {
   if (!(await confirmDiscard())) return;
-  state.pages = [{ id: uid(), name: "Página 1", shapes: [] }];
+  state.pages = [{ id: uid(), name: t("Página {n}", { n: 1 }), shapes: [] }];
   state.pageIndex = 0;
   state.guides = [];
   state.selection = [];
-  state.fileName = "Sin título";
+  state.fileName = t("Sin título");
   state.filePath = null;
   resetHistory();
   zoomPage();
@@ -82,7 +83,7 @@ export async function openDoc() {
   try {
     if (isTauri) {
       const { open } = await import("@tauri-apps/plugin-dialog");
-      const path = await open({ multiple: false, filters: [DOC_FILTER, { name: "JSON", extensions: ["json"] }] });
+      const path = await open({ multiple: false, filters: [docFilter(), { name: "JSON", extensions: ["json"] }] });
       if (!path) return;
       const { readTextFile } = await import("@tauri-apps/plugin-fs");
       load(JSON.parse(await readTextFile(path)), baseName(path), path);
@@ -97,7 +98,7 @@ export async function openDoc() {
     });
     if (file) load(JSON.parse(await file.text()), baseName(file.name), null);
   } catch {
-    await tell("El archivo no es un documento de Free Draw válido.");
+    await tell(t("El archivo no es un documento de Free Draw válido."));
   }
 }
 
@@ -123,7 +124,7 @@ export async function importImage() {
   try {
     await img.decode();
   } catch {
-    return tell("No se pudo leer la imagen.");
+    return tell(t("No se pudo leer la imagen."));
   }
   // 96 dpi, shrunk to fit the page, centred on it
   const k = Math.min(25.4 / 96, state.page.w / img.naturalWidth, state.page.h / img.naturalHeight);
@@ -150,7 +151,7 @@ export async function saveDoc(as = false) {
     state.dirty = false;
     return;
   }
-  const path = await savePath(state.fileName, DOC_FILTER);
+  const path = await savePath(state.fileName, docFilter());
   if (!path) return;
   const { writeTextFile } = await import("@tauri-apps/plugin-fs");
   await writeTextFile(path, docJSON());

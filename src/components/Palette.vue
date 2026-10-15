@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { HueyRoot, SaturationArea, HueSlider, HexInput, ColorPreview, hueyColor } from "@hueycolor/vue";
-import { applyStyle } from "../store";
+import { applyStyle, customColors as custom, addCustomColor, removeCustomColor } from "../store";
 import { t } from "../i18n";
 
 // Close to CorelDRAW's default CMYK palette.
@@ -13,32 +13,16 @@ const colors = [
   "#facd89", "#c7b299", "#8c6239", "#603813", "#e6b422", "#ca9a24",
 ];
 
-// User colours live in this browser/webview, not in the document.
-const KEY = "fd-custom-colors";
-const custom = ref<string[]>((() => {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-})());
-const saveCustom = () => {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(custom.value));
-  } catch {}
-};
-
 const picker = ref(false);
 const draft = ref(hueyColor("#3b82f6"));
 function addCustom() {
-  const c = draft.value.toHexString().toLowerCase();
-  if (!custom.value.includes(c)) custom.value.push(c), saveCustom();
+  addCustomColor(draft.value.toHexString());
   picker.value = false;
 }
 
 // Left click = fill, right click = outline, as in CorelDRAW. Shift+click removes a custom colour.
 function pick(e: MouseEvent, c: string) {
-  if (e.shiftKey && custom.value.includes(c)) return (custom.value = custom.value.filter((x) => x !== c)), saveCustom();
+  if (e.shiftKey && custom.value.includes(c)) return removeCustomColor(c);
   applyStyle(e.button === 2 ? { stroke: c } : { fill: c, gradient: undefined });
 }
 </script>

@@ -1,4 +1,4 @@
-import { reactive, computed } from "vue";
+import { reactive, computed, ref } from "vue";
 import { t } from "./i18n";
 
 // World units are millimetres. Shapes live in their own bbox (x, y, w, h) and
@@ -477,6 +477,26 @@ export function setPage(size: string, landscape: boolean) {
   state.dirty = true;
   zoomPage();
 }
+
+// ---------- custom palette (per user, kept in this browser/webview, not in the document) ----------
+
+const CUSTOM_KEY = "fd-custom-colors";
+export const customColors = ref<string[]>((() => {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+})());
+function setCustomColors(list: string[]) {
+  customColors.value = list;
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+  } catch {}
+}
+export const addCustomColor = (c: string) =>
+  customColors.value.includes(c.toLowerCase()) || setCustomColors([...customColors.value, c.toLowerCase()]);
+export const removeCustomColor = (c: string) => setCustomColors(customColors.value.filter((x) => x !== c));
 
 export function setTool(t: Tool) {
   if (state.tool !== "pick") state.lastTool = state.tool;

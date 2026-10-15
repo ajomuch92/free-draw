@@ -310,4 +310,7 @@ export const en: Record<string, string> = {
   "Solo los objetos, recortados a su tamaño: {w} × {h} px.": "Objects only, cropped to their size: {w} × {h} px.",
   "No hay objetos para exportar.": "There are no objects to export.",
   "La imagen es demasiado grande. Prueba con menos puntos por pulgada.": "The image is too large. Try fewer dots per inch.",
+  "Agregar a colores personalizados": "Add to custom colors",
+  "Guardar la muestra en la paleta, debajo de los colores fijos": "Save the sample in the palette, below the built-in colors",
+  "Ya está en tus colores personalizados": "Already in your custom colors",
 };

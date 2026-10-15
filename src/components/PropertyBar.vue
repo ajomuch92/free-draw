@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import {
   state as S, selected, selectionFrame, setFrame, setPage, flip, applyStyle, commit, measureText,
-  PAGE_SIZES, FONTS, PT,
+  PAGE_SIZES, FONTS, PT, customColors, addCustomColor,
 } from "../store";
 import {
   isCurvable, combine, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
@@ -116,6 +116,11 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
       <div class="flex gap-0.5">
         <button :class="btn" :disabled="!S.sampled" :title="t('Rellenar la selección (o los objetos nuevos) con la muestra')" @click="applySampled('fill')">{{ t('Aplicar relleno') }}</button>
         <button :class="btn" :disabled="!S.sampled" :title="t('Usar la muestra como contorno')" @click="applySampled('stroke')">{{ t('Aplicar contorno') }}</button>
+        <button
+          :class="btn" :disabled="!S.sampled || customColors.includes(S.sampled)"
+          :title="S.sampled && customColors.includes(S.sampled) ? t('Ya está en tus colores personalizados') : t('Guardar la muestra en la paleta, debajo de los colores fijos')"
+          @click="addCustomColor(S.sampled!)"
+        >{{ t('Agregar a colores personalizados') }}</button>
       </div>
       <button v-if="canPickScreen" :class="btn" :title="t('Tomar un color de cualquier parte de la pantalla, incluso fuera de la ventana')" @click="sampleScreen">{{ t('Tomar de la pantalla') }}</button>
       <span class="text-neutral-500">{{ t('Clic en el dibujo para tomar un color; si hay objetos seleccionados se aplica como relleno (Shift o clic derecho: contorno).') }}</span>

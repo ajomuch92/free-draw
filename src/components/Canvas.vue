@@ -302,6 +302,7 @@ function onMove(e: PointerEvent) {
     return;
   }
   const d = drag;
+  dragCursor.value = cursorFor(d);
   switch (d.kind) {
     case "guide": {
       const pos = d.axis === "x" ? p.x : p.y;
@@ -418,6 +419,7 @@ function buildDraft(d: Extract<Drag, { kind: "create" }>, p: P, e: PointerEvent)
 function onUp(e: PointerEvent) {
   const d = drag;
   drag = null;
+  dragCursor.value = null;
   alignLines.value = [];
   if (!d) return;
   if (S.tool === "dimension" && dimStep) {
@@ -549,7 +551,31 @@ function finishText() {
 
 // ---------- lifecycle ----------
 
-const cursor = computed(() => ({
+// While dragging, the cursor says what the drag does (the svg holds the pointer capture,
+// so its cursor wins over the one of the element under the pointer).
+const dragCursor = ref<string | null>(null);
+function cursorFor(d: Drag): string | null {
+  switch (d.kind) {
+    case "move":
+    case "nodes":
+      return d.moved ? "move" : null;
+    case "bend":
+    case "handle":
+      return "move";
+    case "pan":
+      return "grabbing";
+    case "rotate":
+      return "grabbing";
+    case "scale":
+      return d.hx && d.hy ? (d.hx === d.hy ? "nwse-resize" : "nesw-resize") : d.hx ? "ew-resize" : "ns-resize";
+    case "guide":
+      return d.axis === "x" ? "ew-resize" : "ns-resize";
+    default:
+      return null;
+  }
+}
+
+const cursor = computed(() => dragCursor.value ?? ({
   pick: "default", shape: "default", pan: "grab", zoom: "zoom-in", text: "text", eyedropper: "copy",
 }[S.tool as string] ?? "crosshair"));
 

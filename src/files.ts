@@ -1,0 +1,172 @@
+import { state, uid, resetHistory, zoomPage, type Page } from "./store";
+
+// Desktop (Tauri) gets native dialogs and real files; the browser falls back to downloads.
+export const isTauri = "__TAURI_INTERNALS__" in window;
+
+const DOC_FILTER = { name: "Documento de Free Draw", extensions: ["fdraw"] };
+
+export async function ask(text: string) {
+  if (!isTauri) return confirm(text);
+  const { ask } = await import("@tauri-apps/plugin-dialog");
+  return ask(text, { title: "Free Draw", kind: "warning", okLabel: "Descartar", cancelLabel: "Cancelar" });
+}
+
+export async function tell(text: string) {
+  if (!isTauri) return alert(text);
+  const { message } = await import("@tauri-apps/plugin-dialog");
+  await message(text, { title: "Free Draw" });
+}
+
+const confirmDiscard = () => !state.dirty || ask("Hay cambios sin guardar. ¿Descartarlos?");
+const baseName = (p: string) => p.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, "");
+
+function download(blob: Blob, name: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function savePath(name: string, filter: { name: string; extensions: string[] }) {
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  return save({ defaultPath: `${name}.${filter.extensions[0]}`, filters: [filter] });
+}
+
+// Write text or bytes to a user-chosen file (Tauri) or download it (browser).
+async function writeOut(data: string | Uint8Array, name: string, filter: { name: string; extensions: string[] }, mime: string) {
+  if (!isTauri) {
+    download(new Blob([data as BlobPart], { type: mime }), `${name}.${filter.extensions[0]}`);
+    return true;
+  }
+  const path = await savePath(name, filter);
+  if (!path) return false;
+  const fs = await import("@tauri-apps/plugin-fs");
+  if (typeof data === "string") await fs.writeTextFile(path, data);
+  else await fs.writeFile(path, data);
+  return true;
+}
+
+// ---------- document ----------
+
+function load(doc: { app?: string; page?: typeof state.page; pages?: Page[]; shapes?: Page["shapes"]; guides?: typeof state.guides; grid?: typeof state.grid }, name: string, path: string | null) {
+  // v1 files had a single page under "shapes"
+  const pages = doc.pages ?? (Array.isArray(doc.shapes) ? [{ id: uid(), name: "Página 1", shapes: doc.shapes }] : null);
+  if (doc.app !== "free-draw" || !pages?.length) throw new Error("formato");
+  state.pages = pages;
+  state.pageIndex = 0;
+  state.page = doc.page ?? state.page;
+  state.guides = doc.guides ?? [];
+  if (doc.grid) state.grid = doc.grid;
+  state.selection = [];
+  state.fileName = name;
+  state.filePath = path;
+  resetHistory();
+  zoomPage();
+}
+
+export async function newDoc() {
+  if (!(await confirmDiscard())) return;
+  state.pages = [{ id: uid(), name: "Página 1", shapes: [] }];
+  state.pageIndex = 0;
+  state.guides = [];
+  state.selection = [];
+  state.fileName = "Sin título";
+  state.filePath = null;
+  resetHistory();
+  zoomPage();
+}
+
+export async function openDoc() {
+  if (!(await confirmDiscard())) return;
+  try {
+    if (isTauri) {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const path = await open({ multiple: false, filters: [DOC_FILTER, { name: "JSON", extensions: ["json"] }] });
+      if (!path) return;
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      load(JSON.parse(await readTextFile(path)), baseName(path), path);
+      return;
+    }
+    const file = await new Promise<File | undefined>((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".fdraw,.json";
+      input.onchange = () => resolve(input.files?.[0]);
+      input.click();
+    });
+    if (file) load(JSON.parse(await file.text()), baseName(file.name), null);
+  } catch {
+    await tell("El archivo no es un documento de Free Draw válido.");
+  }
+}
+
+const docJSON = () =>
+  JSON.stringify({ app: "free-draw", version: 2, page: state.page, pages: state.pages, guides: state.guides, grid: state.grid });
+
+export async function saveDoc(as = false) {
+  state.editingText = null;
+  if (isTauri && state.filePath && !as) {
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    await writeTextFile(state.filePath, docJSON());
+    state.dirty = false;
+    return;
+  }
+  if (!isTauri) {
+    download(new Blob([docJSON()], { type: "application/json" }), `${state.fileName}.fdraw`);
+    state.dirty = false;
+    return;
+  }
+  const path = await savePath(state.fileName, DOC_FILTER);
+  if (!path) return;
+  const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+  await writeTextFile(path, docJSON());
+  state.filePath = path;
+  state.fileName = baseName(path);
+  state.dirty = false;
+}
+
+// ---------- export (current page) ----------
+
+function pageSVG() {
+  state.editingText = null;
+  const g = document.getElementById("fd-shapes")!.cloneNode(true) as Element;
+  g.querySelectorAll(".fd-hit").forEach((n) => n.remove());
+  g.querySelectorAll("[data-id]").forEach((n) => n.removeAttribute("data-id"));
+  g.querySelectorAll("[pointer-events]").forEach((n) => n.removeAttribute("pointer-events"));
+  const { w, h } = state.page;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">${g.innerHTML}</svg>`;
+}
+
+const exportName = () => (state.pages.length > 1 ? `${state.fileName} - ${state.pages[state.pageIndex].name}` : state.fileName);
+
+export async function exportSVG() {
+  await writeOut(pageSVG(), exportName(), { name: "SVG", extensions: ["svg"] }, "image/svg+xml");
+}
+
+export async function exportPNG(dpi = 300) {
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(pageSVG());
+  await img.decode();
+  const k = dpi / 25.4, canvas = document.createElement("canvas");
+  canvas.width = Math.round(state.page.w * k);
+  canvas.height = Math.round(state.page.h * k);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r));
+  if (blob) await writeOut(new Uint8Array(await blob.arrayBuffer()), exportName(), { name: "PNG", extensions: ["png"] }, "image/png");
+}
+
+// Ask before the desktop window closes with unsaved changes.
+export async function guardWindowClose() {
+  if (!isTauri) {
+    window.addEventListener("beforeunload", (e) => state.dirty && e.preventDefault());
+    return;
+  }
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().onCloseRequested(async (e) => {
+    if (!(await confirmDiscard())) e.preventDefault();
+  });
+}

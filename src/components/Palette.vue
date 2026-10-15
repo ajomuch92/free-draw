@@ -11,7 +11,7 @@ const colors = [
 ];
 
 // Left click = fill, right click = outline, as in CorelDRAW.
-const pick = (e: MouseEvent, c: string) => applyStyle(e.button === 2 ? { stroke: c } : { fill: c });
+const pick = (e: MouseEvent, c: string) => applyStyle(e.button === 2 ? { stroke: c } : { fill: c, gradient: undefined });
 </script>
 
 <template>

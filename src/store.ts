@@ -7,6 +7,9 @@ export type Tool = "pick" | "shape" | "freehand" | "line" | "dimension" | "rect"
 export type ShapeType = "rect" | "ellipse" | "polygon" | "path" | "text" | "dimension";
 export type DimKind = "parallel" | "h" | "v" | "angular";
 export type Dash = "solid" | "dash" | "dot";
+export type Cap = "butt" | "round" | "square";
+export type Join = "miter" | "round" | "bevel";
+export type Arrow = "none" | "triangle" | "open" | "dot";
 export type P = { x: number; y: number };
 export type NodeKind = "cusp" | "smooth" | "symmetric";
 export interface PNode {
@@ -22,12 +25,31 @@ export interface SubPath {
   closed: boolean;
   nodes: PNode[];
 }
+export interface Gradient {
+  type: "linear" | "radial";
+  from: string;
+  to: string;
+  angle: number; // degrees, counter-clockwise like CorelDRAW (linear only)
+}
+// A dimension end attached to an object: a curve node (si/ni) or a normalised bbox point (nx/ny).
+export interface Link {
+  id: string;
+  si?: number;
+  ni?: number;
+  nx?: number;
+  ny?: number;
+}
 
 export interface Style {
   fill: string; // css colour or "none"
+  gradient?: Gradient; // overrides fill when set
   stroke: string;
   strokeWidth: number;
   dash: Dash;
+  cap?: Cap;
+  join?: Join;
+  arrowStart?: Arrow;
+  arrowEnd?: Arrow;
   opacity: number;
 }
 
@@ -44,15 +66,26 @@ export interface Shape extends Style {
   flipY: boolean;
   visible: boolean;
   locked: boolean;
+  groups?: string[]; // enclosing group ids, outermost first
   radius?: number;
   sides?: number;
   paths?: SubPath[]; // "path": normalised nodes, handles relative to their node
-  dim?: { kind: DimKind; pts: [number, number][]; decimals: number; units: boolean };
+  dim?: { kind: DimKind; pts: [number, number][]; decimals: number; units: boolean; links?: (Link | null)[] };
   text?: string;
   fontSize?: number; // mm
   fontFamily?: string;
   natW?: number; // unscaled text size, used to stretch text to its bbox
   natH?: number;
+}
+
+export interface Page {
+  id: string;
+  name: string;
+  shapes: Shape[];
+}
+export interface Guide {
+  axis: "x" | "y"; // "x": vertical line at x = pos
+  pos: number;
 }
 
 export interface Frame {
@@ -81,8 +114,19 @@ export const TYPE_NAMES: Record<ShapeType, string> = {
   text: "Texto artístico",
 };
 
+let counter = 0;
+export const uid = () => `s${Date.now().toString(36)}${(counter++).toString(36)}`;
+
 export const state = reactive({
-  shapes: [] as Shape[],
+  pages: [{ id: uid(), name: "Página 1", shapes: [] }] as Page[],
+  pageIndex: 0,
+  // shapes of the current page; everything else works on this
+  get shapes(): Shape[] {
+    return this.pages[this.pageIndex].shapes;
+  },
+  set shapes(v: Shape[]) {
+    this.pages[this.pageIndex].shapes = v;
+  },
   selection: [] as string[],
   tool: "pick" as Tool,
   lastTool: "rect" as Tool,
@@ -91,9 +135,15 @@ export const state = reactive({
   nodeSel: [] as string[], // "subpath:index" of selected nodes (shape tool)
   dimMode: "parallel" as "parallel" | "hv" | "angular",
   dimDefaults: { decimals: 2, units: true },
-  defaults: { fill: "none", stroke: "#000000", strokeWidth: 0.2, dash: "solid", opacity: 1 } as Style,
+  defaults: {
+    fill: "none", stroke: "#000000", strokeWidth: 0.2, dash: "solid", cap: "butt", join: "round",
+    arrowStart: "none", arrowEnd: "none", opacity: 1,
+  } as Style,
   textDefaults: { fontFamily: "Arial", fontSize: 24 * PT },
   page: { size: "A4", w: 210, h: 297 },
+  guides: [] as Guide[],
+  grid: { show: false, spacing: 5 },
+  snapTo: { grid: false, guides: true, objects: true },
   zoom: 2, // screen px per mm
   panX: 0,
   panY: 0,
@@ -101,17 +151,16 @@ export const state = reactive({
   viewH: 600,
   cursor: { x: 0, y: 0 } as P,
   fileName: "Sin título",
+  filePath: null as string | null,
   dirty: false,
 });
 
 export const selected = computed(() => state.shapes.filter((s) => state.selection.includes(s.id)));
 
-let counter = 0;
-export const uid = () => `s${Date.now().toString(36)}${(counter++).toString(36)}`;
-
 export function makeShape(type: ShapeType, init: Partial<Shape>): Shape {
-  const style = type === "text" ? { ...state.defaults, fill: "#000000", stroke: "none" } : { ...state.defaults };
+  const style: Style = type === "text" ? { ...state.defaults, fill: "#000000", stroke: "none" } : { ...state.defaults };
   if (type === "dimension") style.fill = "none";
+  if (type !== "path") (style.arrowStart = "none", style.arrowEnd = "none");
   const n = state.shapes.filter((s) => s.type === type).length + 1;
   return {
     id: uid(), type, name: `${TYPE_NAMES[type]} ${n}`,
@@ -164,6 +213,7 @@ export function selectionFrame(): Frame | null {
   return { cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, rotation: 0 };
 }
 
+export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 const snapshot = (list: Shape[]) => list.map((s) => ({ ...s }));
 
 // Scale every shape of `list` (from its `orig` copy) inside frame f, keeping the
@@ -220,21 +270,50 @@ export function measureText(s: Shape) {
   s.h = natH * ky;
 }
 
+// ---------- groups ----------
+
+// Outermost group (or the shape itself): what a click selects and z-order moves.
+export const unitKey = (s: Shape) => s.groups?.[0] ?? s.id;
+
+// Add every member of the outermost groups touched by ids.
+export function expandGroups(ids: string[]) {
+  const keys = new Set(state.shapes.filter((s) => ids.includes(s.id)).map(unitKey));
+  return state.shapes.filter((s) => keys.has(unitKey(s))).map((s) => s.id);
+}
+
+// Consecutive shapes sharing an outermost group; groups are kept contiguous in z-order.
+export function units(list = state.shapes): Shape[][] {
+  const out: Shape[][] = [];
+  for (const s of list) {
+    const last = out[out.length - 1];
+    if (last && s.groups?.length && unitKey(last[0]) === s.groups[0]) last.push(s);
+    else out.push([s]);
+  }
+  return out;
+}
+
 // ---------- history ----------
 
-const history: string[] = [JSON.stringify([])];
+// Hooks run before every snapshot (linked dimensions refresh themselves here).
+export const beforeCommit: (() => void)[] = [];
+
+const docSnapshot = () => JSON.stringify({ pages: state.pages, pageIndex: state.pageIndex });
+const history: string[] = [docSnapshot()];
 let hIndex = 0;
 
 export function commit() {
+  beforeCommit.forEach((fn) => fn());
   history.splice(hIndex + 1);
-  history.push(JSON.stringify(state.shapes));
+  history.push(docSnapshot());
   if (history.length > 200) history.shift();
   hIndex = history.length - 1;
   state.dirty = true;
 }
 
 function restore() {
-  state.shapes = JSON.parse(history[hIndex]);
+  const snap = JSON.parse(history[hIndex]);
+  state.pages = snap.pages;
+  state.pageIndex = Math.min(snap.pageIndex, state.pages.length - 1);
   state.selection = state.selection.filter((id) => state.shapes.some((s) => s.id === id));
 }
 
@@ -245,11 +324,42 @@ export function redo() {
   if (hIndex < history.length - 1) (hIndex++, restore());
 }
 
-function resetHistory() {
+export function resetHistory() {
   history.length = 0;
-  history.push(JSON.stringify(state.shapes));
+  history.push(docSnapshot());
   hIndex = 0;
   state.dirty = false;
+}
+
+// ---------- pages ----------
+
+export function gotoPage(i: number) {
+  if (i < 0 || i >= state.pages.length || i === state.pageIndex) return;
+  state.editingText = null;
+  state.selection = [];
+  state.nodeSel = [];
+  state.pageIndex = i;
+}
+
+export function addPage(at = state.pageIndex + 1) {
+  state.pages.splice(at, 0, { id: uid(), name: `Página ${state.pages.length + 1}`, shapes: [] });
+  state.selection = [];
+  state.pageIndex = at;
+  commit();
+}
+
+export function deletePage(i = state.pageIndex) {
+  if (state.pages.length < 2) return;
+  state.pages.splice(i, 1);
+  state.selection = [];
+  state.pageIndex = Math.min(state.pageIndex, state.pages.length - 1);
+  commit();
+}
+
+export function renamePage(i: number, name: string) {
+  if (!name.trim() || state.pages[i].name === name) return;
+  state.pages[i].name = name.trim();
+  commit();
 }
 
 // ---------- edit ----------
@@ -257,7 +367,11 @@ function resetHistory() {
 let clipboard: Shape[] = [];
 
 function insertCopies(src: Shape[], offset: number) {
-  const copies = src.map((s) => ({ ...s, id: uid(), x: s.x + offset, y: s.y + offset }));
+  // copies get fresh group ids so they do not join the originals' groups
+  const remap = new Map<string, string>();
+  const gid = (g: string) => remap.get(g) ?? (remap.set(g, uid()), remap.get(g)!);
+  const copies = clone(src).map((s) => ({ ...s, id: uid(), x: s.x + offset, y: s.y + offset, groups: s.groups?.map(gid) }));
+  copies.forEach((s) => s.dim?.links && (s.dim.links = undefined));
   state.shapes.push(...copies);
   state.selection = copies.map((s) => s.id);
   commit();
@@ -269,7 +383,7 @@ export function del() {
   state.selection = [];
   commit();
 }
-export const copy = () => (clipboard = snapshot(selected.value));
+export const copy = () => (clipboard = clone(selected.value));
 export const cut = () => (copy(), del());
 export const paste = () => clipboard.length && insertCopies(clipboard, 0);
 export const duplicate = () => selected.value.length && insertCopies(selected.value, 5);
@@ -301,26 +415,30 @@ export function flip(axis: "x" | "y") {
   commit();
 }
 
-// ---------- order ----------
+// ---------- order (groups move as one unit) ----------
 
-const isSel = (s: Shape) => state.selection.includes(s.id);
+const isSelUnit = (u: Shape[]) => u.some((s) => state.selection.includes(s.id));
 
 export function toFront() {
-  state.shapes = [...state.shapes.filter((s) => !isSel(s)), ...state.shapes.filter(isSel)];
+  const u = units();
+  state.shapes = [...u.filter((x) => !isSelUnit(x)), ...u.filter(isSelUnit)].flat();
   commit();
 }
 export function toBack() {
-  state.shapes = [...state.shapes.filter(isSel), ...state.shapes.filter((s) => !isSel(s))];
+  const u = units();
+  state.shapes = [...u.filter(isSelUnit), ...u.filter((x) => !isSelUnit(x))].flat();
   commit();
 }
 export function forward() {
-  const a = state.shapes;
-  for (let i = a.length - 2; i >= 0; i--) if (isSel(a[i]) && !isSel(a[i + 1])) [a[i], a[i + 1]] = [a[i + 1], a[i]];
+  const a = units();
+  for (let i = a.length - 2; i >= 0; i--) if (isSelUnit(a[i]) && !isSelUnit(a[i + 1])) [a[i], a[i + 1]] = [a[i + 1], a[i]];
+  state.shapes = a.flat();
   commit();
 }
 export function backward() {
-  const a = state.shapes;
-  for (let i = 1; i < a.length; i++) if (isSel(a[i]) && !isSel(a[i - 1])) [a[i], a[i - 1]] = [a[i - 1], a[i]];
+  const a = units();
+  for (let i = 1; i < a.length; i++) if (isSelUnit(a[i]) && !isSelUnit(a[i - 1])) [a[i], a[i - 1]] = [a[i - 1], a[i]];
+  state.shapes = a.flat();
   commit();
 }
 
@@ -347,87 +465,12 @@ export function zoomBy(k: number, sx = state.viewW / 2, sy = state.viewH / 2) {
   state.panY = sy - wy * state.zoom;
 }
 
+// ponytail: one page size for the whole document; per-page sizes when someone needs mixed formats
 export function setPage(size: string, landscape: boolean) {
   const [w, h] = PAGE_SIZES[size];
   state.page = { size, w: landscape ? h : w, h: landscape ? w : h };
+  state.dirty = true;
   zoomPage();
-}
-
-// ---------- files ----------
-
-function download(blob: Blob, name: string) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-
-export function newDoc() {
-  if (state.dirty && !confirm("¿Descartar los cambios del documento actual?")) return;
-  state.shapes = [];
-  state.selection = [];
-  state.fileName = "Sin título";
-  resetHistory();
-  zoomPage();
-}
-
-export function saveDoc() {
-  const doc = { app: "free-draw", version: 1, page: state.page, shapes: state.shapes };
-  download(new Blob([JSON.stringify(doc)], { type: "application/json" }), `${state.fileName}.fdraw`);
-  state.dirty = false;
-}
-
-export function openDoc() {
-  if (state.dirty && !confirm("¿Descartar los cambios del documento actual?")) return;
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = ".fdraw,.json";
-  input.onchange = async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    try {
-      const doc = JSON.parse(await file.text());
-      if (doc.app !== "free-draw" || !Array.isArray(doc.shapes)) throw new Error("formato");
-      state.page = doc.page;
-      state.shapes = doc.shapes;
-      state.selection = [];
-      state.fileName = file.name.replace(/\.(fdraw|json)$/, "");
-      resetHistory();
-      zoomPage();
-    } catch {
-      alert("El archivo no es un documento de Free Draw válido.");
-    }
-  };
-  input.click();
-}
-
-function pageSVG() {
-  state.editingText = null;
-  const g = document.getElementById("fd-shapes")!.cloneNode(true) as Element;
-  g.querySelectorAll(".fd-hit").forEach((n) => n.remove());
-  g.querySelectorAll("[data-id]").forEach((n) => n.removeAttribute("data-id"));
-  g.querySelectorAll("[pointer-events]").forEach((n) => n.removeAttribute("pointer-events"));
-  const { w, h } = state.page;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">${g.innerHTML}</svg>`;
-}
-
-export function exportSVG() {
-  download(new Blob([pageSVG()], { type: "image/svg+xml" }), `${state.fileName}.svg`);
-}
-
-export async function exportPNG(dpi = 300) {
-  const img = new Image();
-  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(pageSVG());
-  await img.decode();
-  const k = dpi / 25.4, canvas = document.createElement("canvas");
-  canvas.width = Math.round(state.page.w * k);
-  canvas.height = Math.round(state.page.h * k);
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  canvas.toBlob((b) => b && download(b, `${state.fileName}.png`));
 }
 
 export function setTool(t: Tool) {

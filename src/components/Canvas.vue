@@ -1,39 +1,48 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import {
-  state as S, selected, selectionFrame, corners, makeShape, measureText, commit,
+  state as S, selected, selectionFrame, corners, makeShape, measureText, commit, expandGroups, units,
   scaleShapes, rotateShapes, bounds, zoomBy, zoomPage,
-  type Frame, type P, type Shape, type SubPath,
+  type Frame, type P, type Shape, type SubPath, type Link,
 } from "../store";
 import {
-  worldPaths, moveNodes, moveHandle, addNodeAt, deleteNodes, key, pathFromPoints, snapCandidates, snap as snapTo,
+  worldPaths, moveNodes, moveHandle, bendSegment, nearestSegment, addNodeAt, deleteNodes, key, pathFromPoints,
 } from "../paths";
-import { makeDimension, hvKind } from "../dimensions";
+import { makeDimension, hvKind, updateLinkedDimensions } from "../dimensions";
+import { snapContext, snapPoint, moveTargets, snapMove, type SnapResult } from "../snap";
 import ShapeView from "./ShapeView.vue";
+import Rulers from "./Rulers.vue";
+
+const RULER = 20; // px, same as Rulers.vue
 
 const svg = ref<SVGSVGElement>();
 const editor = ref<HTMLTextAreaElement>();
 const draft = shallowRef<Shape | null>(null);
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 const snapMark = ref<P | null>(null);
+const alignLines = ref<{ axis: "x" | "y"; pos: number }[]>([]);
+const guideDraft = ref<{ axis: "x" | "y"; pos: number } | null>(null);
 
+type Ctx = ReturnType<typeof snapContext>;
+type Box = { x: number; y: number; w: number; h: number };
 type Drag =
   | { kind: "pan"; sx: number; sy: number; px: number; py: number }
-  | { kind: "move"; start: P; orig: Shape[]; moved: boolean; wasSelected: boolean }
-  | { kind: "scale"; hx: number; hy: number; frame: Frame; orig: Shape[] }
+  | { kind: "move"; start: P; orig: Shape[]; moved: boolean; wasSelected: boolean; box: Box; targets: { x: number[]; y: number[] } }
+  | { kind: "scale"; hx: number; hy: number; frame: Frame; orig: Shape[]; ctx: Ctx }
   | { kind: "rotate"; frame: Frame; startAng: number; orig: Shape[] }
   | { kind: "marquee"; start: P; add: boolean }
-  | { kind: "create"; start: P; pts: P[] }
-  | { kind: "nodes"; shape: Shape; start: P; orig: SubPath[]; moved: boolean }
+  | { kind: "create"; start: P; pts: P[]; ctx: Ctx }
+  | { kind: "nodes"; shape: Shape; start: P; orig: SubPath[]; moved: boolean; grab: P; ctx: Ctx }
   | { kind: "handle"; shape: Shape; orig: SubPath[]; si: number; ni: number; which: "in" | "out" }
-  | { kind: "nodeMarquee"; start: P; add: boolean };
+  | { kind: "bend"; shape: Shape; orig: SubPath[]; si: number; i: number; t: number; start: P; moved: boolean }
+  | { kind: "nodeMarquee"; start: P; add: boolean }
+  | { kind: "guide"; index: number | null; axis: "x" | "y" };
 let drag: Drag | null = null;
 
 // Dimension tool is click-driven across several gestures:
 // linear  = press A, drag to B, release, move to place, click
 // angular = press vertex, drag to arm 1, release, click arm 2, click radius
-let dimStep: { pts: P[]; stage: number } | null = null;
-let cands: P[] = [];
+let dimStep: { pts: P[]; links: (Link | null)[]; stage: number; ctx: Ctx } | null = null;
 
 const rectOf = () => svg.value!.getBoundingClientRect();
 function toWorld(e: { clientX: number; clientY: number }): P {
@@ -42,13 +51,12 @@ function toWorld(e: { clientX: number; clientY: number }): P {
 }
 const toScreen = (p: P): P => ({ x: p.x * S.zoom + S.panX, y: p.y * S.zoom + S.panY });
 const deg = (a: number) => (a * 180) / Math.PI;
-const snap = (a: number, step = 15) => Math.round(a / step) * step;
+const snapAngle = (a: number, step = 15) => Math.round(a / step) * step;
 
-// Snap to object nodes and centres (line and dimension tools).
-function snapped(p: P): P {
-  const s = snapTo(p, cands, 8 / S.zoom);
-  snapMark.value = s;
-  return s ?? p;
+function snapped(p: P, ctx: Ctx, objects = true): SnapResult {
+  const r = snapPoint(p, ctx, objects);
+  snapMark.value = r.mark;
+  return r;
 }
 
 function hitShape(target: EventTarget | null): Shape | undefined {
@@ -105,6 +113,14 @@ const nodeView = computed(() => {
   return { nodes, handles: hs };
 });
 const snapScreen = computed(() => (snapMark.value ? toScreen(snapMark.value) : null));
+const screenGuides = computed(() => {
+  const list = S.guides.map((g, i) => ({ ...g, i }));
+  if (guideDraft.value) list.push({ ...guideDraft.value, i: -1 });
+  return list.map((g) => ({ ...g, s: g.axis === "x" ? g.pos * S.zoom + S.panX : g.pos * S.zoom + S.panY }));
+});
+const screenAlign = computed(() =>
+  alignLines.value.map((l) => ({ ...l, s: l.axis === "x" ? l.pos * S.zoom + S.panX : l.pos * S.zoom + S.panY })),
+);
 
 // ---------- pointer ----------
 
@@ -113,10 +129,22 @@ function onDown(e: PointerEvent) {
   e.preventDefault();
   if (e.button === 2 && S.tool !== "zoom") return;
   svg.value!.setPointerCapture(e.pointerId);
-  const p = toWorld(e);
+  const p = toWorld(e), t = e.target as Element;
 
   if (e.button === 1 || S.tool === "pan") {
     drag = { kind: "pan", sx: e.clientX, sy: e.clientY, px: S.panX, py: S.panY };
+    return;
+  }
+  // guides: drag one out of a ruler, or move an existing one
+  const ruler = t.closest("[data-ruler]")?.getAttribute("data-ruler") as "x" | "y" | undefined;
+  if (ruler) {
+    drag = { kind: "guide", index: null, axis: ruler };
+    guideDraft.value = { axis: ruler, pos: ruler === "x" ? p.x : p.y };
+    return;
+  }
+  const gi = t.closest("[data-guide]")?.getAttribute("data-guide");
+  if (gi !== undefined && gi !== null && S.tool === "pick") {
+    drag = { kind: "guide", index: +gi, axis: S.guides[+gi].axis };
     return;
   }
   if (S.tool === "zoom") {
@@ -136,19 +164,20 @@ function onDown(e: PointerEvent) {
   if (S.tool === "shape") return shapeToolDown(e, p);
   if (S.tool === "dimension") return dimensionDown(p);
   if (S.tool !== "pick") {
-    if (S.tool === "line") (cands = snapCandidates(), (p.x = snapped(p).x), (p.y = snapped(p).y));
-    drag = { kind: "create", start: p, pts: [p] };
+    const ctx = snapContext();
+    const start = S.tool === "freehand" ? p : snapped(p, ctx).p;
+    drag = { kind: "create", start, pts: [start], ctx };
     return;
   }
 
-  const handle = (e.target as Element).closest("[data-handle]")?.getAttribute("data-handle");
+  const handle = t.closest("[data-handle]")?.getAttribute("data-handle");
   const f = selectionFrame();
   if (handle && f) {
     const orig = selected.value.map((s) => ({ ...s }));
     const [hx, hy] = handle.split(",").map(Number);
     drag = S.rotateMode
       ? { kind: "rotate", frame: f, startAng: deg(Math.atan2(p.y - f.cy, p.x - f.cx)), orig }
-      : { kind: "scale", hx, hy, frame: f, orig };
+      : { kind: "scale", hx, hy, frame: f, orig, ctx: snapContext(new Set(S.selection)) };
     return;
   }
 
@@ -158,13 +187,19 @@ function onDown(e: PointerEvent) {
     drag = { kind: "marquee", start: p, add: e.shiftKey };
     return;
   }
-  const wasSelected = S.selection.includes(hit.id);
+  // a click selects the whole group; Ctrl+click picks one object inside it
+  const ids = e.ctrlKey ? [hit.id] : expandGroups([hit.id]);
+  const wasSelected = ids.every((id) => S.selection.includes(id));
   if (e.shiftKey) {
-    S.selection = wasSelected ? S.selection.filter((id) => id !== hit.id) : [...S.selection, hit.id];
+    S.selection = wasSelected ? S.selection.filter((id) => !ids.includes(id)) : [...S.selection, ...ids.filter((id) => !S.selection.includes(id))];
     return;
   }
-  if (!wasSelected) (S.selection = [hit.id], S.rotateMode = false);
-  drag = { kind: "move", start: p, orig: selected.value.map((s) => ({ ...s })), moved: false, wasSelected };
+  if (!wasSelected) (S.selection = ids, S.rotateMode = false);
+  const exclude = new Set(S.selection);
+  drag = {
+    kind: "move", start: p, orig: selected.value.map((s) => ({ ...s })), moved: false, wasSelected,
+    box: bounds(selected.value), targets: moveTargets(exclude),
+  };
 }
 
 function shapeToolDown(e: PointerEvent, p: P) {
@@ -179,13 +214,20 @@ function shapeToolDown(e: PointerEvent, p: P) {
   if (s && nd) {
     if (e.shiftKey) S.nodeSel = S.nodeSel.includes(nd) ? S.nodeSel.filter((k) => k !== nd) : [...S.nodeSel, nd];
     else if (!S.nodeSel.includes(nd)) S.nodeSel = [nd];
-    drag = { kind: "nodes", shape: s, start: p, orig: worldPaths(s), moved: false };
+    const orig = worldPaths(s), [si, ni] = nd.split(":").map(Number);
+    drag = { kind: "nodes", shape: s, start: p, orig, moved: false, grab: orig[si].nodes[ni], ctx: snapContext(new Set([s.id])) };
     return;
   }
   const hit = hitShape(e.target);
   if (hit && hit !== s) {
     S.selection = [hit.id];
     S.nodeSel = [];
+    return;
+  }
+  // dragging the curve itself bends the segment under the cursor
+  const seg = s && hit === s ? nearestSegment(s, p) : null;
+  if (s && seg && seg.d < 6 / S.zoom) {
+    drag = { kind: "bend", shape: s, orig: worldPaths(s), si: seg.si, i: seg.i, t: seg.t, start: p, moved: false };
     return;
   }
   if (!e.shiftKey) S.nodeSel = [];
@@ -195,10 +237,10 @@ function shapeToolDown(e: PointerEvent, p: P) {
 
 function dimensionDown(p: P) {
   if (!dimStep) {
-    cands = snapCandidates();
-    const q = snapped(p);
-    dimStep = { pts: [q, q, q, q], stage: 0 };
-    drag = { kind: "create", start: q, pts: [] };
+    const ctx = snapContext();
+    const r = snapped(p, ctx);
+    dimStep = { pts: [r.p, r.p, r.p, r.p], links: [r.link ?? null], stage: 0, ctx };
+    drag = { kind: "create", start: r.p, pts: [], ctx };
     return;
   }
   const last = S.dimMode === "angular" ? 2 : 1;
@@ -220,12 +262,15 @@ function dimensionDown(p: P) {
 function dimensionMove(p: P) {
   const st = dimStep!;
   const linear = S.dimMode !== "angular";
-  const q = (linear && st.stage === 1) || st.stage === 2 ? p : snapped(p); // placement never snaps
-  for (let i = st.stage + 1; i < st.pts.length; i++) st.pts[i] = q;
+  const placing = (linear && st.stage === 1) || st.stage === 2;
+  const r = placing ? { p, link: undefined } : snapped(p, st.ctx); // placement never snaps
+  if (placing) snapMark.value = null;
+  for (let i = st.stage + 1; i < st.pts.length; i++) st.pts[i] = r.p;
+  if (!placing) st.links[st.stage + 1] = r.link ?? null;
   if (linear) {
     const [A, B, Pp] = st.pts;
-    draft.value = makeDimension(S.dimMode === "hv" ? hvKind(A, B, Pp) : "parallel", [A, B, Pp]);
-  } else draft.value = makeDimension("angular", st.pts);
+    draft.value = makeDimension(S.dimMode === "hv" ? hvKind(A, B, Pp) : "parallel", [A, B, Pp], st.links.slice(0, 2));
+  } else draft.value = makeDimension("angular", st.pts, st.links.slice(0, 3));
 }
 
 function cancelDimension() {
@@ -240,23 +285,42 @@ function onMove(e: PointerEvent) {
   S.cursor = p;
   if (S.tool === "dimension" && dimStep) return dimensionMove(p);
   if (!drag) {
-    // ponytail: candidates rebuilt on every hover move; cache per document change if docs get big
-    if (S.tool === "dimension" || S.tool === "line") (cands = snapCandidates(), snapped(p));
+    // ponytail: hover rebuilds snap points on every move; cache per document change if docs get big
+    if (S.tool === "dimension" || S.tool === "line" || S.tool === "rect" || S.tool === "ellipse" || S.tool === "polygon")
+      snapped(p, snapContext());
     return;
   }
   const d = drag;
   switch (d.kind) {
+    case "guide": {
+      const pos = d.axis === "x" ? p.x : p.y;
+      if (d.index === null) guideDraft.value = { axis: d.axis, pos };
+      else S.guides[d.index].pos = pos;
+      break;
+    }
     case "nodes": {
       let dx = p.x - d.start.x, dy = p.y - d.start.y;
       if (!d.moved && Math.hypot(dx, dy) * S.zoom < 3) return;
       d.moved = true;
       if (e.ctrlKey) Math.abs(dx) > Math.abs(dy) ? (dy = 0) : (dx = 0);
-      moveNodes(d.shape, d.orig, S.nodeSel, dx, dy);
+      // the grabbed node snaps; the rest of the selection follows it
+      const r = snapped({ x: d.grab.x + dx, y: d.grab.y + dy }, d.ctx);
+      moveNodes(d.shape, d.orig, S.nodeSel, r.p.x - d.grab.x, r.p.y - d.grab.y);
+      updateLinkedDimensions();
       break;
     }
     case "handle":
       moveHandle(d.shape, d.orig, d.si, d.ni, d.which, p);
+      updateLinkedDimensions();
       break;
+    case "bend": {
+      const dx = p.x - d.start.x, dy = p.y - d.start.y;
+      if (!d.moved && Math.hypot(dx, dy) * S.zoom < 3) return;
+      d.moved = true;
+      bendSegment(d.shape, d.orig, d.si, d.i, d.t, dx, dy);
+      updateLinkedDimensions();
+      break;
+    }
     case "pan":
       S.panX = d.px + e.clientX - d.sx;
       S.panY = d.py + e.clientY - d.sy;
@@ -266,12 +330,21 @@ function onMove(e: PointerEvent) {
       if (!d.moved && Math.hypot(dx, dy) * S.zoom < 3) return;
       d.moved = true;
       if (e.ctrlKey) Math.abs(dx) > Math.abs(dy) ? (dy = 0) : (dx = 0);
+      if (!e.altKey) {
+        // Alt drags freely; otherwise edges and centres snap to guides, grid and other objects
+        const r = snapMove(d.box, dx, dy, d.targets);
+        if (!e.ctrlKey || dy === 0) dx = r.dx;
+        if (!e.ctrlKey || dx === 0) dy = r.dy;
+        alignLines.value = r.lines;
+      }
       selected.value.forEach((s, i) => ((s.x = d.orig[i].x + dx), (s.y = d.orig[i].y + dy)));
+      updateLinkedDimensions();
       break;
     }
     case "scale": {
+      const q = snapped(p, d.ctx).p;
       const f = d.frame, r = (-f.rotation * Math.PI) / 180;
-      const vx = p.x - f.cx, vy = p.y - f.cy;
+      const vx = q.x - f.cx, vy = q.y - f.cy;
       const lx = vx * Math.cos(r) - vy * Math.sin(r), ly = vx * Math.sin(r) + vy * Math.cos(r);
       const fromCenter = e.shiftKey;
       const ax = fromCenter ? 0 : (-d.hx * f.w) / 2, ay = fromCenter ? 0 : (-d.hy * f.h) / 2;
@@ -279,12 +352,14 @@ function onMove(e: PointerEvent) {
       let sy = d.hy && f.h > 1e-6 ? ((ly - ay) * d.hy) / (fromCenter ? f.h / 2 : f.h) : 1;
       if (d.hx && d.hy && !e.altKey) sx = sy = Math.max(sx, sy); // corners scale proportionally, like CorelDRAW
       scaleShapes(selected.value, d.orig, f, Math.max(sx, 0.01), Math.max(sy, 0.01), ax, ay);
+      updateLinkedDimensions();
       break;
     }
     case "rotate": {
       let a = deg(Math.atan2(p.y - d.frame.cy, p.x - d.frame.cx)) - d.startAng;
-      if (e.ctrlKey) a = snap(a);
+      if (e.ctrlKey) a = snapAngle(a);
       rotateShapes(selected.value, d.orig, d.frame.cx, d.frame.cy, a);
+      updateLinkedDimensions();
       break;
     }
     case "marquee":
@@ -307,11 +382,12 @@ function buildDraft(d: Extract<Drag, { kind: "create" }>, p: P, e: PointerEvent)
     if (Math.hypot(p.x - last.x, p.y - last.y) * S.zoom > 2) d.pts.push(p);
     return pathFromPoints(d.pts, 0, false);
   }
+  if (!e.ctrlKey) p = snapped(p, d.ctx).p;
   if (t === "line") {
-    let end = snapped(p);
+    let end = p;
     if (e.ctrlKey) {
       const len = Math.hypot(p.x - d.start.x, p.y - d.start.y);
-      const a = (snap(deg(Math.atan2(p.y - d.start.y, p.x - d.start.x))) * Math.PI) / 180;
+      const a = (snapAngle(deg(Math.atan2(p.y - d.start.y, p.x - d.start.x))) * Math.PI) / 180;
       end = { x: d.start.x + len * Math.cos(a), y: d.start.y + len * Math.sin(a) };
     }
     return pathFromPoints([d.start, end], 0, false);
@@ -331,6 +407,7 @@ function buildDraft(d: Extract<Drag, { kind: "create" }>, p: P, e: PointerEvent)
 function onUp(e: PointerEvent) {
   const d = drag;
   drag = null;
+  alignLines.value = [];
   if (!d) return;
   if (S.tool === "dimension" && dimStep) {
     // end of the first press-drag: keep going only if it measured something
@@ -339,7 +416,17 @@ function onUp(e: PointerEvent) {
     else dimStep.stage = 1;
     return;
   }
-  if (d.kind === "nodes" || d.kind === "handle") {
+  if (d.kind === "guide") {
+    // dropping a guide back on its ruler removes it
+    const r = rectOf(), onRuler = d.axis === "x" ? e.clientX - r.left < RULER : e.clientY - r.top < RULER;
+    if (d.index === null && guideDraft.value && !onRuler) S.guides.push(guideDraft.value);
+    if (d.index !== null && onRuler) S.guides.splice(d.index, 1);
+    guideDraft.value = null;
+    S.dirty = true;
+    return;
+  }
+  if (d.kind === "nodes" || d.kind === "handle" || d.kind === "bend") {
+    snapMark.value = null;
     if (d.kind === "handle" || d.moved) commit();
     return;
   }
@@ -356,17 +443,20 @@ function onUp(e: PointerEvent) {
     if (d.moved) commit();
     else if (d.wasSelected && !e.shiftKey) S.rotateMode = !S.rotateMode; // second click toggles rotate handles
   } else if (d.kind === "scale" || d.kind === "rotate") {
+    snapMark.value = null;
     commit();
   } else if (d.kind === "marquee") {
     const m = marquee.value;
     marquee.value = null;
     if (!m) return;
-    const inside = S.shapes.filter((s) => {
+    const inside = (s: Shape) => {
       if (!s.visible || s.locked) return false;
       const b = bounds([s]);
       return b.x >= m.x && b.y >= m.y && b.x + b.w <= m.x + m.w && b.y + b.h <= m.y + m.h;
-    });
-    S.selection = [...new Set([...(d.add ? S.selection : []), ...inside.map((s) => s.id)])];
+    };
+    // a group is picked only when all of it is inside the marquee
+    const picked = units().filter((u) => u.every(inside)).flat().map((s) => s.id);
+    S.selection = [...new Set([...(d.add ? S.selection : []), ...picked])];
   } else if (d.kind === "create") {
     let s = draft.value;
     draft.value = null;
@@ -464,7 +554,8 @@ onMounted(() => {
   window.addEventListener("keydown", onKey);
 });
 onBeforeUnmount(() => (ro.disconnect(), window.removeEventListener("keydown", onKey)));
-watch(() => S.tool, () => (cancelDimension(), (cands = [])));
+watch(() => S.tool, () => cancelDimension());
+watch(() => S.pageIndex, () => (cancelDimension(), (marquee.value = null)));
 
 defineExpose({ finishText });
 </script>
@@ -483,9 +574,18 @@ defineExpose({ finishText });
       @dblclick="onDblClick"
       @contextmenu.prevent
     >
+      <defs>
+        <pattern id="fd-grid" :width="S.grid.spacing" :height="S.grid.spacing" patternUnits="userSpaceOnUse">
+          <path :d="`M ${S.grid.spacing} 0 L 0 0 0 ${S.grid.spacing}`" fill="none" stroke="#c7d2fe" :stroke-width="1 / S.zoom" />
+        </pattern>
+      </defs>
       <g :transform="`translate(${S.panX} ${S.panY}) scale(${S.zoom})`">
         <rect :x="4 / S.zoom" :y="4 / S.zoom" :width="S.page.w" :height="S.page.h" fill="#8d9096" />
         <rect :width="S.page.w" :height="S.page.h" fill="#fff" stroke="#6b6f76" :stroke-width="1 / S.zoom" />
+        <rect
+          v-if="S.grid.show && S.grid.spacing * S.zoom >= 4"
+          :width="S.page.w" :height="S.page.h" fill="url(#fd-grid)" pointer-events="none"
+        />
         <g id="fd-shapes">
           <ShapeView v-for="s in S.shapes" :key="s.id" :shape="s" :zoom="S.zoom" :hidden="s.id === S.editingText" />
         </g>
@@ -497,6 +597,28 @@ defineExpose({ finishText });
           :x="marquee.x" :y="marquee.y" :width="marquee.w" :height="marquee.h"
           fill="rgba(37,99,235,0.08)" stroke="#2563eb" :stroke-width="1 / S.zoom" :stroke-dasharray="`${4 / S.zoom} ${3 / S.zoom}`"
         />
+      </g>
+
+      <!-- guides and alignment hints (screen space) -->
+      <g>
+        <g v-for="g in screenGuides" :key="g.i" :data-guide="g.i >= 0 ? g.i : undefined" :style="{ cursor: g.axis === 'x' ? 'ew-resize' : 'ns-resize' }">
+          <line
+            v-if="g.axis === 'x'" :x1="g.s" :x2="g.s" y1="0" :y2="S.viewH" stroke="transparent" stroke-width="7"
+            :pointer-events="S.tool === 'pick' && g.i >= 0 ? 'stroke' : 'none'"
+          />
+          <line
+            v-else :x1="0" :x2="S.viewW" :y1="g.s" :y2="g.s" stroke="transparent" stroke-width="7"
+            :pointer-events="S.tool === 'pick' && g.i >= 0 ? 'stroke' : 'none'"
+          />
+          <line
+            v-if="g.axis === 'x'" :x1="g.s" :x2="g.s" y1="0" :y2="S.viewH" stroke="#2b7fff" stroke-dasharray="4 3" pointer-events="none"
+          />
+          <line v-else :x1="0" :x2="S.viewW" :y1="g.s" :y2="g.s" stroke="#2b7fff" stroke-dasharray="4 3" pointer-events="none" />
+        </g>
+        <template v-for="(l, i) in screenAlign" :key="`a${i}`">
+          <line v-if="l.axis === 'x'" :x1="l.s" :x2="l.s" y1="0" :y2="S.viewH" stroke="#db2777" stroke-width="1" pointer-events="none" />
+          <line v-else :x1="0" :x2="S.viewW" :y1="l.s" :y2="l.s" stroke="#db2777" stroke-width="1" pointer-events="none" />
+        </template>
       </g>
 
       <g v-if="frame && S.tool === 'pick'">
@@ -544,6 +666,8 @@ defineExpose({ finishText });
         v-if="snapScreen" :x="snapScreen.x - 6" :y="snapScreen.y - 6" width="12" height="12"
         fill="none" stroke="#e11d48" stroke-width="1.5" pointer-events="none"
       />
+
+      <Rulers />
     </svg>
 
     <textarea

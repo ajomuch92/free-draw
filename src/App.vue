@@ -6,20 +6,26 @@ import Toolbox from "./components/Toolbox.vue";
 import Canvas from "./components/Canvas.vue";
 import Docker from "./components/Docker.vue";
 import Palette from "./components/Palette.vue";
+import PageTabs from "./components/PageTabs.vue";
 import {
   state as S, selected, setTool, commit, undo, redo, cut, copy, paste, duplicate, duplicateInPlace, del, selectAll,
-  toFront, toBack, forward, backward, zoomPage, zoomObjects, zoomBy, newDoc, openDoc, saveDoc, exportSVG,
+  toFront, toBack, forward, backward, zoomPage, zoomObjects, zoomBy, gotoPage, units,
   TYPE_NAMES, type Tool,
 } from "./store";
-import { convertToCurves, combine, breakApart, deleteNodes, moveNodes, worldPaths } from "./paths";
+import { combine, breakApart, deleteNodes, moveNodes, worldPaths } from "./paths";
+import { newDoc, openDoc, saveDoc, exportSVG, guardWindowClose } from "./files";
+import { toCurves } from "./fonts";
+import { group, ungroup, align, type Edge } from "./arrange";
 
 const ctrlKeys: Record<string, () => unknown> = {
   z: undo, y: redo, x: cut, c: copy, v: paste, d: duplicate, a: selectAll,
-  n: newDoc, o: openDoc, s: saveDoc, e: exportSVG,
+  n: newDoc, o: openDoc, s: () => saveDoc(), e: exportSVG,
   pageup: forward, pagedown: backward,
-  q: () => convertToCurves(), l: combine, k: breakApart,
+  q: toCurves, l: combine, k: breakApart, g: group, u: () => ungroup(),
 };
 const toolKeys: Record<string, Tool> = { f10: "shape", f5: "freehand", f6: "rect", f7: "ellipse", f8: "text", y: "polygon", z: "zoom", h: "pan" };
+// CorelDRAW alignment keys, active with the pick tool and a selection
+const alignKeys: Record<string, Edge> = { l: "left", r: "right", t: "top", b: "bottom", e: "centerY", c: "centerX" };
 
 function onKey(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
@@ -27,12 +33,14 @@ function onKey(e: KeyboardEvent) {
   const k = e.key.toLowerCase();
 
   if (e.ctrlKey || e.metaKey) {
-    const fn = e.shiftKey && k === "z" ? redo : ctrlKeys[k];
+    const fn = e.shiftKey && k === "z" ? redo : e.shiftKey && k === "s" ? () => saveDoc(true) : ctrlKeys[k];
     if (fn) (e.preventDefault(), fn());
     return;
   }
+  if (e.altKey && k === "z") return e.preventDefault(), (S.snapTo.objects = !S.snapTo.objects);
   if (e.shiftKey && (k === "pageup" || k === "pagedown")) return e.preventDefault(), k === "pageup" ? toFront() : toBack();
   if (e.shiftKey && k === "f4") return e.preventDefault(), zoomPage();
+  if (k === "pageup" || k === "pagedown") return e.preventDefault(), gotoPage(S.pageIndex + (k === "pageup" ? -1 : 1));
 
   const nudge = e.shiftKey ? 10 : 1; // mm
   const arrows: Record<string, [number, number]> = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
@@ -48,6 +56,10 @@ function onKey(e: KeyboardEvent) {
     selected.value.forEach((s) => ((s.x += arrows[k][0] * nudge), (s.y += arrows[k][1] * nudge)));
     commit();
     return;
+  }
+  if (S.tool === "pick" && S.selection.length && !e.shiftKey) {
+    if (alignKeys[k]) return e.preventDefault(), align([alignKeys[k]]);
+    if (k === "p") return e.preventDefault(), align(["centerX", "centerY"], true);
   }
   if (toolKeys[k]) return e.preventDefault(), setTool(toolKeys[k]);
   switch (k) {
@@ -77,22 +89,17 @@ function onKey(e: KeyboardEvent) {
   }
 }
 
-function onBeforeUnload(e: BeforeUnloadEvent) {
-  if (S.dirty) e.preventDefault();
-}
-
 onMounted(() => {
   window.addEventListener("keydown", onKey);
-  window.addEventListener("beforeunload", onBeforeUnload);
+  guardWindowClose();
 });
-onBeforeUnmount(() => {
-  window.removeEventListener("keydown", onKey);
-  window.removeEventListener("beforeunload", onBeforeUnload);
-});
+onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 const status = computed(() => {
   const n = selected.value.length;
   if (!n) return "Ningún objeto seleccionado";
+  const groups = units().filter((u) => u.length > 1 && u.some((s) => S.selection.includes(s.id)));
+  if (groups.length === 1 && groups[0].length === n) return `Grupo de ${n} objetos en Capa 1`;
   if (n > 1) return `${n} objetos seleccionados en Capa 1`;
   if (S.tool === "shape" && selected.value[0].type !== "path")
     return `${TYPE_NAMES[selected.value[0].type]} — conviértalo a curvas (Ctrl+Q) para editar sus nodos`;
@@ -101,6 +108,7 @@ const status = computed(() => {
 const one = computed(() => selected.value[0] ?? S.defaults);
 const cursorText = computed(() => `( ${S.cursor.x.toFixed(2)} ; ${(S.page.h - S.cursor.y).toFixed(2)} ) mm`);
 const swatch = (c: string) => (c === "none" ? "repeating-linear-gradient(45deg,#fff 0 3px,#ddd 3px 6px)" : c);
+const fillSwatch = computed(() => (one.value.gradient ? `linear-gradient(90deg, ${one.value.gradient.from}, ${one.value.gradient.to})` : swatch(one.value.fill)));
 </script>
 
 <template>
@@ -109,7 +117,10 @@ const swatch = (c: string) => (c === "none" ? "repeating-linear-gradient(45deg,#
     <PropertyBar />
     <div class="flex-1 min-h-0 flex">
       <Toolbox />
-      <Canvas />
+      <div class="flex-1 min-w-0 flex flex-col">
+        <Canvas />
+        <PageTabs />
+      </div>
       <Docker />
       <Palette />
     </div>
@@ -117,7 +128,7 @@ const swatch = (c: string) => (c === "none" ? "repeating-linear-gradient(45deg,#
       <span class="w-44 tabular-nums">{{ cursorText }}</span>
       <span class="flex-1 truncate">{{ status }}</span>
       <span class="flex items-center gap-1.5">
-        Relleno <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.fill) }" />
+        Relleno <span class="w-4 h-3 border border-neutral-400" :style="{ background: fillSwatch }" />
       </span>
       <span class="flex items-center gap-1.5">
         Contorno <span class="w-4 h-3 border border-neutral-400" :style="{ background: swatch(one.stroke) }" />

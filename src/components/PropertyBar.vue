@@ -5,9 +5,11 @@ import {
   PAGE_SIZES, FONTS, PT,
 } from "../store";
 import {
-  isCurvable, convertToCurves, combine, breakApart, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
+  isCurvable, combine, breakApart, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
   toggleClosed, toLine, toCurve, setNodeKind, type BoolOp,
 } from "../paths";
+import { toCurves } from "../fonts";
+import { group, ungroup, canUngroup } from "../arrange";
 
 const frame = computed(() => selectionFrame());
 const one = computed(() => (selected.value.length === 1 ? selected.value[0] : null));
@@ -51,7 +53,7 @@ function setFont(patch: { fontFamily?: string; fontSize?: number }) {
 const editPath = computed(() => (S.tool === "shape" && one.value?.type === "path" ? one.value : null));
 const nodeCount = computed(() => editPath.value?.paths?.reduce((n, sp) => n + sp.nodes.length, 0) ?? 0);
 const curvableCount = computed(() => selected.value.filter(isCurvable).length);
-const canConvert = computed(() => selected.value.some((s) => isCurvable(s) && s.type !== "path"));
+const canConvert = computed(() => selected.value.some((s) => (isCurvable(s) && s.type !== "path") || s.type === "text"));
 const canBreak = computed(() => one.value?.type === "path" && (one.value.paths?.length ?? 0) > 1);
 
 const shaping: { op: BoolOp; label: string; title: string }[] = [
@@ -204,9 +206,14 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
         </label>
       </template>
 
+      <template v-if="selected.length > 1 || canUngroup()">
+        <div class="w-px h-6 bg-neutral-300" />
+        <button v-if="selected.length > 1" :class="btn" title="Agrupar (Ctrl+G)" @click="group">Agrupar</button>
+        <button v-if="canUngroup()" :class="btn" title="Desagrupar (Ctrl+U)" @click="ungroup()">Desagrupar</button>
+      </template>
       <template v-if="canConvert || canBreak || curvableCount > 1">
         <div class="w-px h-6 bg-neutral-300" />
-        <button v-if="canConvert" :class="btn" title="Convertir a curvas (Ctrl+Q)" @click="convertToCurves()">Convertir a curvas</button>
+        <button v-if="canConvert" :class="btn" title="Convertir a curvas (Ctrl+Q)" @click="toCurves">Convertir a curvas</button>
         <button v-if="curvableCount > 1" :class="btn" title="Combinar (Ctrl+L)" @click="combine">Combinar</button>
         <button v-if="canBreak" :class="btn" title="Separar (Ctrl+K)" @click="breakApart">Separar</button>
       </template>

@@ -36,6 +36,7 @@ Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, fre
 | Alt al escalar desde una esquina | Sin mantener proporción |
 | Shift al dibujar o escalar | Desde el centro |
 | Paleta: clic / clic derecho | Relleno / contorno |
+| Paleta: "+" / Mayús+clic en un color propio | Agregar / quitar color personalizado |
 | Duplicar, Duplicar en sitio | Ctrl+D, + (teclado numérico) |
 | Orden | Ctrl/Shift + RePág/AvPág |
 | Zoom a objetos / página | F4 / Shift+F4 |

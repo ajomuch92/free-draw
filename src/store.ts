@@ -68,7 +68,7 @@ export interface Shape extends Style {
   visible: boolean;
   locked: boolean;
   groups?: string[]; // enclosing group ids, outermost first
-  radius?: number;
+  radius?: number | number[]; // mm; [top-left, top-right, bottom-right, bottom-left] when corners differ
   sides?: number;
   paths?: SubPath[]; // "path": normalised nodes, handles relative to their node
   dim?: { kind: DimKind; pts: [number, number][]; decimals: number; units: boolean; links?: (Link | null)[] };

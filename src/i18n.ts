@@ -294,4 +294,11 @@ export const en: Record<string, string> = {
   "No se pudo leer la imagen.": "Could not read the image.",
   "Convertir texto a curvas solo está disponible en la app de escritorio (usa las fuentes de Windows).": "Converting text to curves is only available in the desktop app (it uses the Windows fonts).",
   "No se pudo leer la fuente: {e}": "Could not read the font: {e}",
+  "Esquina superior izquierda": "Top-left corner",
+  "Esquina superior derecha": "Top-right corner",
+  "Esquina inferior derecha": "Bottom-right corner",
+  "Esquina inferior izquierda": "Bottom-left corner",
+  "Radio de las esquinas": "Corner radius",
+  "Mismo radio en todas las esquinas": "Same radius on all corners",
+  "Radio independiente por esquina": "Independent radius per corner",
 };

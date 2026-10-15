@@ -12,6 +12,8 @@ En la app de escritorio, abrir, guardar y exportar usan los diálogos nativos de
 
 La interfaz está en **español e inglés** (selector ES/EN en la barra de menú; arranca en el idioma del sistema). Los textos viven en `src/i18n.ts`: el texto en español es la clave, y `bun run check:i18n` falla si a alguno le falta su traducción.
 
+Los **rectángulos** pueden tener las esquinas redondeadas con un mismo radio o uno distinto por esquina (candado en la barra de propiedades).
+
 Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, frente/detrás) usan [paper.js](http://paperjs.org) solo para cálculo y conservan las curvas. El objetivo es el objeto de más atrás de la selección. Las **cotas** (paralela, horizontal/vertical, angular) se ajustan a los nodos de los objetos al dibujarlas.
 
 ## Atajos (estilo CorelDRAW)

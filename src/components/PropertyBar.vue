@@ -36,9 +36,30 @@ function setSize(axis: "w" | "h", v: number) {
 
 const widths = [0.1, 0.2, 0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5, 8];
 
-function setShapeProp(key: "radius" | "sides", v: number) {
+function setSides(v: number) {
   if (!one.value || !(v >= 0)) return;
-  one.value[key] = key === "sides" ? Math.min(50, Math.max(3, Math.round(v))) : v;
+  one.value.sides = Math.min(50, Math.max(3, Math.round(v)));
+  commit();
+}
+
+// Rectangle corners: a number while they are linked, one radius per corner once unlinked.
+const CORNERS = ["Esquina superior izquierda", "Esquina superior derecha", "Esquina inferior derecha", "Esquina inferior izquierda"];
+const radii = computed(() => {
+  const r = one.value?.radius ?? 0;
+  return Array.isArray(r) ? r : [r];
+});
+function setRadius(i: number, v: number) {
+  const s = one.value;
+  if (!s || !(v >= 0)) return;
+  if (Array.isArray(s.radius)) s.radius = s.radius.map((r, j) => (j === i ? v : r));
+  else s.radius = v;
+  commit();
+}
+function toggleCorners() {
+  const s = one.value;
+  if (!s) return;
+  const r = s.radius ?? 0;
+  s.radius = Array.isArray(r) ? r[0] : [r, r, r, r];
   commit();
 }
 
@@ -198,11 +219,30 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
 
       <template v-if="one?.type === 'rect'">
         <div class="w-px h-6 bg-neutral-300" />
-        <label class="flex items-center gap-1">{{ t('Esquinas:') }} <input type="number" min="0" step="0.5" :value="one.radius ?? 0" class="w-14" @change="setShapeProp('radius', num($event))" /> mm</label>
+        <span class="flex items-center gap-1">{{ t('Esquinas:') }}
+          <input
+            v-for="(r, i) in radii" :key="i" type="number" min="0" step="0.5" :value="r2(r)" class="w-12"
+            :title="radii.length > 1 ? t(CORNERS[i]) : undefined" :aria-label="radii.length > 1 ? t(CORNERS[i]) : t('Radio de las esquinas')"
+            @change="setRadius(i, num($event))"
+          />
+          mm
+          <button
+            class="w-6 h-6 grid place-items-center rounded-sm border"
+            :class="radii.length === 1 ? 'bg-blue-100 border-blue-400' : 'border-neutral-300 bg-white'"
+            :title="radii.length === 1 ? t('Mismo radio en todas las esquinas') : t('Radio independiente por esquina')"
+            :aria-pressed="radii.length === 1"
+            @click="toggleCorners"
+          >
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="5" y="11" width="14" height="9" rx="1" />
+              <path :d="radii.length === 1 ? 'M8 11V8a4 4 0 0 1 8 0v3' : 'M8 11V8a4 4 0 0 1 8 0'" />
+            </svg>
+          </button>
+        </span>
       </template>
       <template v-if="one?.type === 'polygon'">
         <div class="w-px h-6 bg-neutral-300" />
-        <label class="flex items-center gap-1">{{ t('Lados:') }} <input type="number" min="3" max="50" :value="one.sides" class="w-12" @change="setShapeProp('sides', num($event))" /></label>
+        <label class="flex items-center gap-1">{{ t('Lados:') }} <input type="number" min="3" max="50" :value="one.sides" class="w-12" @change="setSides(num($event))" /></label>
       </template>
       <template v-if="one?.type === 'text'">
         <div class="w-px h-6 bg-neutral-300" />

@@ -15,6 +15,12 @@ const node = (x: number, y: number, ix = 0, iy = 0, ox = 0, oy = 0, kind: NodeKi
 
 export const isCurvable = (s: Shape) => s.type === "rect" || s.type === "ellipse" || s.type === "polygon" || s.type === "path";
 
+// Corner radii in mm [top-left, top-right, bottom-right, bottom-left], clamped so arcs never overlap.
+export function rectRadii(s: Shape) {
+  const r = s.radius ?? 0, max = Math.min(s.w, s.h) / 2;
+  return (Array.isArray(r) ? r : [r, r, r, r]).map((v) => Math.max(0, Math.min(v, max)));
+}
+
 export function curvesOf(s: Shape): SubPath[] {
   if (s.type === "path") return s.paths ?? [];
   if (s.type === "polygon") return [{ closed: true, nodes: polygonPoints(s.sides ?? 5).map(([x, y]) => node(x, y)) }];
@@ -28,14 +34,14 @@ export function curvesOf(s: Shape): SubPath[] {
     ] }];
   }
   if (s.type === "rect") {
-    const r = Math.min(s.radius ?? 0, s.w / 2, s.h / 2);
-    if (r <= 0) return [{ closed: true, nodes: [node(0, 0), node(1, 0), node(1, 1), node(0, 1)] }];
-    const rx = r / (s.w || 1), ry = r / (s.h || 1), kx = rx * KAPPA, ky = ry * KAPPA;
+    const [tl, tr, br, bl] = rectRadii(s).map((r) => [r / (s.w || 1), r / (s.h || 1)]);
+    // clockwise from the top-left corner; a sharp corner is a single node
+    const corner = (r: number[], x: number, y: number, a: PNode, b: PNode) => (r[0] > 0 ? [a, b] : [node(x, y)]);
     return [{ closed: true, nodes: [
-      node(rx, 0, -kx, 0), node(1 - rx, 0, 0, 0, kx, 0),
-      node(1, ry, 0, -ky), node(1, 1 - ry, 0, 0, 0, ky),
-      node(1 - rx, 1, kx, 0), node(rx, 1, 0, 0, -kx, 0),
-      node(0, 1 - ry, 0, ky), node(0, ry, 0, 0, 0, -ky),
+      ...corner(tl, 0, 0, node(0, tl[1], 0, 0, 0, -tl[1] * KAPPA), node(tl[0], 0, -tl[0] * KAPPA, 0)),
+      ...corner(tr, 1, 0, node(1 - tr[0], 0, 0, 0, tr[0] * KAPPA, 0), node(1, tr[1], 0, -tr[1] * KAPPA)),
+      ...corner(br, 1, 1, node(1, 1 - br[1], 0, 0, 0, br[1] * KAPPA), node(1 - br[0], 1, br[0] * KAPPA, 0)),
+      ...corner(bl, 0, 1, node(bl[0], 1, 0, 0, -bl[0] * KAPPA, 0), node(0, 1 - bl[1], 0, bl[1] * KAPPA)),
     ] }];
   }
   return [];

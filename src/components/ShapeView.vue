@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { type Shape, polygonPoints } from "../store";
-import { pathD } from "../paths";
+import { pathD, curvesOf } from "../paths";
 import { dimensionGeometry } from "../dimensions";
 
 const props = defineProps<{ shape: Shape; zoom: number; hidden?: boolean }>();
@@ -47,6 +47,8 @@ const marker = (end: "s" | "e") => {
 
 const closedD = computed(() => (props.shape.type === "path" ? pathD(props.shape, true) : ""));
 const openD = computed(() => (props.shape.type === "path" ? pathD(props.shape, false) : ""));
+// per-corner radii have no SVG <rect> equivalent: draw the rectangle as a path
+const rectD = computed(() => (Array.isArray(props.shape.radius) ? pathD({ ...props.shape, paths: curvesOf(props.shape) }, true) : ""));
 const dim = computed(() => (props.shape.type === "dimension" ? dimensionGeometry(props.shape) : null));
 const lines = computed(() => (props.shape.text ?? "").split("\n"));
 </script>
@@ -90,7 +92,8 @@ const lines = computed(() => (props.shape.text ?? "").split("\n"));
           </marker>
         </template>
       </defs>
-      <rect v-if="shape.type === 'rect'" :width="shape.w" :height="shape.h" :rx="shape.radius" v-bind="paint" pointer-events="all" />
+      <path v-if="rectD" :d="rectD" v-bind="paint" pointer-events="all" />
+      <rect v-else-if="shape.type === 'rect'" :width="shape.w" :height="shape.h" :rx="shape.radius as number" v-bind="paint" pointer-events="all" />
       <ellipse
         v-else-if="shape.type === 'ellipse'"
         :cx="shape.w / 2" :cy="shape.h / 2" :rx="shape.w / 2" :ry="shape.h / 2"

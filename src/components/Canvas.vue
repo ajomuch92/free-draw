@@ -83,6 +83,7 @@ const handles = computed(() => {
     return { hx, hy, ...p };
   });
 });
+const rotIcon = "M5 -4 A9 9 0 0 1 -4 5 M2 -1 L5 -4 L8 -1 M-1 2 L-4 5 L-1 8";
 const center = computed(() => (frame.value ? toScreen({ x: frame.value.cx, y: frame.value.cy }) : null));
 const outline = computed(() =>
   frame.value && selected.value.length > 1
@@ -669,12 +670,15 @@ defineExpose({ finishText });
             :style="{ cursor: h.hx && h.hy ? (h.hx === h.hy ? 'nwse-resize' : 'nesw-resize') : h.hx ? 'ew-resize' : 'ns-resize' }"
           />
           <g v-else data-handle="rot" :transform="`translate(${h.x} ${h.y})`" style="cursor: alias">
-            <circle r="9" fill="transparent" />
-            <path
-              :transform="`rotate(${(Math.atan2(h.hy, h.hx) * 180) / Math.PI + 45})`"
-              d="M -6 -2 A 6 6 0 0 1 2 -6 M 2 -6 l -3 -2 M 2 -6 l -2 3"
-              fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"
-            />
+            <circle r="10" fill="transparent" />
+            <!-- drawn for the bottom-right corner (45°): a double-headed arc bulging outwards -->
+            <g
+              :transform="`rotate(${(Math.atan2(h.hy, h.hx) * 180) / Math.PI + frame.rotation - 45})`"
+              fill="none" stroke-linecap="round" stroke-linejoin="round"
+            >
+              <path :d="rotIcon" stroke="#fff" stroke-width="4" />
+              <path :d="rotIcon" stroke="#000" stroke-width="1.6" />
+            </g>
           </g>
         </template>
         <g v-if="center" :transform="`translate(${center.x} ${center.y})`" pointer-events="none">

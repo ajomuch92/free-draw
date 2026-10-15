@@ -5,10 +5,11 @@ import {
   PAGE_SIZES, FONTS, PT,
 } from "../store";
 import {
-  isCurvable, combine, breakApart, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
+  isCurvable, combine, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
   toggleClosed, toLine, toCurve, setNodeKind, type BoolOp,
 } from "../paths";
 import { toCurves } from "../fonts";
+import { breakApart } from "../dimensions";
 import { group, ungroup, canUngroup } from "../arrange";
 import { applySampled, sampleScreen, canPickScreen } from "../eyedropper";
 import { t } from "../i18n";
@@ -77,7 +78,7 @@ const editPath = computed(() => (S.tool === "shape" && one.value?.type === "path
 const nodeCount = computed(() => editPath.value?.paths?.reduce((n, sp) => n + sp.nodes.length, 0) ?? 0);
 const curvableCount = computed(() => selected.value.filter(isCurvable).length);
 const canConvert = computed(() => selected.value.some((s) => (isCurvable(s) && s.type !== "path") || s.type === "text"));
-const canBreak = computed(() => one.value?.type === "path" && (one.value.paths?.length ?? 0) > 1);
+const canBreak = computed(() => selected.value.some((s) => s.type === "dimension") || (one.value?.type === "path" && (one.value.paths?.length ?? 0) > 1));
 
 const shaping: { op: BoolOp; label: string; title: string }[] = [
   { op: "weld", label: "Soldar", title: "Une los objetos en uno solo" },

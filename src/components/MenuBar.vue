@@ -4,7 +4,8 @@ import {
   state as S, undo, redo, cut, copy, paste, duplicate, del, selectAll, toFront, toBack, forward, backward, flip,
   zoomPage, zoomObjects, zoomBy, addPage, deletePage, gotoPage,
 } from "../store";
-import { combine, breakApart, booleanOp } from "../paths";
+import { combine, booleanOp } from "../paths";
+import { breakApart } from "../dimensions";
 import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, importImage, recent, openRecent, baseName } from "../files";
 import { toCurves } from "../fonts";
 import { group, ungroup, align, distribute } from "../arrange";

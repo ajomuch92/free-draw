@@ -1,5 +1,9 @@
-import { state, makeShape, fromPoints, beforeCommit, type DimKind, type P, type Shape, type Link } from "./store";
-import { toWorld, resolveLink } from "./paths";
+import paper from "paper";
+import {
+  state, selected, makeShape, fromPoints, beforeCommit, commit, measureText,
+  type DimKind, type P, type Shape, type Link, type PNode,
+} from "./store";
+import { toWorld, resolveLink, fromPaper, setWorldPaths, breakApart as breakCurve } from "./paths";
 
 export interface DimGeometry {
   lines: string; // path data for extension + dimension lines
@@ -111,6 +115,43 @@ export function dimensionGeometry(s: Shape): DimGeometry | null {
     arrows: [aA.pts, aB.pts],
     label: { x: m.x, y: m.y, angle, dy: -fs * 0.4, text: format(s, value) },
   };
+}
+
+// Break a dimension into plain objects (CorelDRAW "Break Dimension Apart"):
+// extension/dimension lines, arrowheads and the label as editable text.
+function breakDimension(s: Shape) {
+  const g = dimensionGeometry(s)!;
+  const color = s.stroke === "none" ? "#000000" : s.stroke, fs = s.fontSize ?? 3.5;
+  const common = { strokeWidth: s.strokeWidth, opacity: s.opacity, groups: s.groups };
+
+  const lines = makeShape("path", { ...common, stroke: color, fill: "none", dash: "solid" });
+  setWorldPaths(lines, fromPaper(new paper.CompoundPath(g.lines)));
+
+  const corner = (xy: string): PNode => {
+    const [x, y] = xy.split(",").map(Number);
+    return { x, y, ix: 0, iy: 0, ox: 0, oy: 0, kind: "cusp" };
+  };
+  const arrows = makeShape("path", { ...common, stroke: "none", fill: color });
+  setWorldPaths(arrows, g.arrows.map((pts) => ({ closed: true, nodes: pts.split(" ").map(corner) })));
+
+  // the label is anchored at its baseline centre; a text shape is placed by its box centre (0.3 em above the baseline)
+  const L = g.label, a = (L.angle * Math.PI) / 180, off = L.dy - fs * 0.3;
+  const text = makeShape("text", { ...common, text: L.text, fontSize: fs, fontFamily: s.fontFamily, fill: color, stroke: "none", rotation: (L.angle + 360) % 360 });
+  measureText(text);
+  text.x = L.x - off * Math.sin(a) - text.w / 2;
+  text.y = L.y + off * Math.cos(a) - text.h / 2;
+
+  const parts = [lines, arrows, text];
+  state.shapes.splice(state.shapes.indexOf(s), 1, ...parts);
+  return parts;
+}
+
+// Ctrl+K: dimensions break into lines, arrows and text; curves into their subpaths.
+export function breakApart() {
+  const dims = selected.value.filter((s) => s.type === "dimension");
+  if (!dims.length) return breakCurve();
+  state.selection = dims.flatMap(breakDimension).map((p) => p.id);
+  commit();
 }
 
 // H/V tool: pick the axis from where the placement point sits relative to A..B.

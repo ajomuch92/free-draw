@@ -12,7 +12,8 @@ import {
   toFront, toBack, forward, backward, zoomPage, zoomObjects, zoomBy, gotoPage, units,
   TYPE_NAMES, type Tool,
 } from "./store";
-import { combine, breakApart, deleteNodes, moveNodes, worldPaths } from "./paths";
+import { combine, deleteNodes, moveNodes, worldPaths } from "./paths";
+import { breakApart } from "./dimensions";
 import { newDoc, openDoc, saveDoc, exportSVG, importImage, guardWindowClose } from "./files";
 import { toCurves } from "./fonts";
 import { group, ungroup, align, type Edge } from "./arrange";

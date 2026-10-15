@@ -16,7 +16,7 @@ The interface is in **Spanish and English** (ES/EN selector in the menu bar; it 
 
 **Rectangles** can have rounded corners, with one radius for all of them or a different one per corner (lock button in the property bar).
 
-The **Shaping** operations (weld, trim, intersect, simplify, front/back minus) use [paper.js](http://paperjs.org) for the maths only and keep the curves. The target is the backmost object of the selection. **Dimensions** (parallel, horizontal/vertical, angular) snap to object nodes while drawing.
+The **Shaping** operations (weld, trim, intersect, simplify, front/back minus) use [paper.js](http://paperjs.org) for the maths only and keep the curves. The target is the backmost object of the selection. **Dimensions** (parallel, horizontal/vertical, angular) snap to object nodes while drawing; **Break apart** (Ctrl+K) turns one into editable lines, arrowheads and text.
 
 ## Shortcuts (CorelDRAW style)
 
@@ -28,7 +28,7 @@ The **Shaping** operations (weld, trim, intersect, simplify, front/back minus) u
 | Shape (edit nodes) | F10 |
 | Shape: double-click a node / a segment | Delete node / add node |
 | Shape: drag a segment | Bend it (straight lines become curves) |
-| Convert to curves (text too, desktop only), Combine, Break apart | Ctrl+Q, Ctrl+L, Ctrl+K |
+| Convert to curves (text too, desktop only), Combine, Break apart (curves and dimensions) | Ctrl+Q, Ctrl+L, Ctrl+K |
 | Group, Ungroup | Ctrl+G, Ctrl+U |
 | Ctrl+click | Select an object inside a group |
 | Align left, right, top, bottom | L, R, T, B |

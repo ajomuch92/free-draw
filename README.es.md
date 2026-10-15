@@ -16,7 +16,7 @@ La interfaz está en **español e inglés** (selector ES/EN en la barra de menú
 
 Los **rectángulos** pueden tener las esquinas redondeadas con un mismo radio o uno distinto por esquina (candado en la barra de propiedades).
 
-Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, frente/detrás) usan [paper.js](http://paperjs.org) solo para cálculo y conservan las curvas. El objetivo es el objeto de más atrás de la selección. Las **cotas** (paralela, horizontal/vertical, angular) se ajustan a los nodos de los objetos al dibujarlas.
+Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, frente/detrás) usan [paper.js](http://paperjs.org) solo para cálculo y conservan las curvas. El objetivo es el objeto de más atrás de la selección. Las **cotas** (paralela, horizontal/vertical, angular) se ajustan a los nodos de los objetos al dibujarlas; **Separar** (Ctrl+K) convierte una cota en líneas, flechas y texto editables.
 
 ## Atajos (estilo CorelDRAW)
 
@@ -28,7 +28,7 @@ Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, fre
 | Forma (editar nodos) | F10 |
 | Forma: doble clic en nodo / en segmento | Eliminar nodo / agregar nodo |
 | Forma: arrastrar un segmento | Curvarlo (las líneas rectas pasan a curva) |
-| Convertir a curvas (también texto, solo escritorio), Combinar, Separar | Ctrl+Q, Ctrl+L, Ctrl+K |
+| Convertir a curvas (también texto, solo escritorio), Combinar, Separar (curvas y cotas) | Ctrl+Q, Ctrl+L, Ctrl+K |
 | Agrupar, Desagrupar | Ctrl+G, Ctrl+U |
 | Ctrl+clic | Seleccionar un objeto dentro de un grupo |
 | Alinear izquierda, derecha, arriba, abajo | L, R, T, B |

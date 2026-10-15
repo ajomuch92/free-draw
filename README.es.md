@@ -18,6 +18,8 @@ Los **rectángulos** pueden tener las esquinas redondeadas con un mismo radio o 
 
 Las operaciones de **Dar forma** (soldar, recortar, intersecar, simplificar, frente/detrás) usan [paper.js](http://paperjs.org) solo para cálculo y conservan las curvas. El objetivo es el objeto de más atrás de la selección. Las **cotas** (paralela, horizontal/vertical, angular) se ajustan a los nodos de los objetos al dibujarlas; **Separar** (Ctrl+K) convierte una cota en líneas, flechas y texto editables.
 
+**Exportar a PNG** pide la resolución (72–600 ppp) y si el fondo es transparente, y recorta la imagen a los objetos en lugar de toda la página.
+
 ## Atajos (estilo CorelDRAW)
 
 | Acción | Tecla |

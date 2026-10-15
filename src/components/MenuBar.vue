@@ -6,12 +6,29 @@ import {
 } from "../store";
 import { combine, booleanOp } from "../paths";
 import { breakApart } from "../dimensions";
-import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, importImage, recent, openRecent, baseName } from "../files";
+import { newDoc, openDoc, saveDoc, exportSVG, exportPNG, drawingBounds, importImage, recent, openRecent, baseName } from "../files";
 import { toCurves } from "../fonts";
 import { group, ungroup, align, distribute } from "../arrange";
 import { t, lang, type Lang } from "../i18n";
 
 type Item = { label: string; key?: string; title?: string; run: () => unknown; checked?: () => boolean } | "-";
+// ---------- PNG export dialog ----------
+const DPI = [72, 96, 150, 300, 600];
+const png = ref<HTMLDialogElement>();
+const dpiIndex = ref(3);
+const transparent = ref(false);
+const pngSize = ref({ w: 0, h: 0 }); // mm
+function openPng() {
+  const b = drawingBounds();
+  pngSize.value = b ? { w: b.w, h: b.h } : { w: 0, h: 0 };
+  png.value?.showModal();
+}
+const px = (mm: number) => Math.max(1, Math.round((mm / 25.4) * DPI[dpiIndex.value]));
+function runPng() {
+  png.value?.close();
+  exportPNG(DPI[dpiIndex.value], transparent.value);
+}
+
 const menus = computed<{ label: string; items: Item[] }[]>(() => [
   { label: "Archivo", items: [
     { label: "Nuevo", key: "Ctrl+N", run: newDoc },
@@ -23,7 +40,7 @@ const menus = computed<{ label: string; items: Item[] }[]>(() => [
     "-",
     { label: "Importar imagen…", key: "Ctrl+I", run: importImage },
     { label: "Exportar página a SVG…", key: "Ctrl+E", run: exportSVG },
-    { label: "Exportar página a PNG (300 ppp)…", run: () => exportPNG() },
+    { label: "Exportar a PNG…", run: openPng },
   ] },
   { label: "Editar", items: [
     { label: "Deshacer", key: "Ctrl+Z", run: undo },
@@ -182,5 +199,22 @@ const tb = "w-7 h-7 grid place-items-center rounded hover:bg-neutral-200 text-ne
         /> mm
       </label>
     </div>
+
+    <dialog ref="png" class="m-auto w-80 p-4 rounded border border-neutral-300 shadow-xl text-xs text-neutral-800 backdrop:bg-black/25">
+      <h2 class="mb-3 text-sm font-semibold">{{ t('Exportar a PNG') }}</h2>
+      <label class="flex flex-col gap-1">
+        <span class="flex justify-between">{{ t('Resolución') }} <b class="tabular-nums">{{ DPI[dpiIndex] }} {{ t('ppp') }}</b></span>
+        <input v-model.number="dpiIndex" type="range" min="0" :max="DPI.length - 1" step="1" />
+        <span class="flex justify-between text-neutral-500 tabular-nums"><span v-for="d in DPI" :key="d">{{ d }}</span></span>
+      </label>
+      <label class="mt-3 flex items-center gap-1.5"><input v-model="transparent" type="checkbox" /> {{ t('Fondo transparente') }}</label>
+      <p class="mt-3 text-neutral-500">
+        {{ pngSize.w ? t('Solo los objetos, recortados a su tamaño: {w} × {h} px.', { w: px(pngSize.w), h: px(pngSize.h) }) : t('No hay objetos para exportar.') }}
+      </p>
+      <div class="mt-4 flex justify-end gap-1">
+        <button class="px-3 h-7 rounded hover:bg-neutral-200" @click="png?.close()">{{ t('Cancelar') }}</button>
+        <button class="px-3 h-7 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40" :disabled="!pngSize.w" @click="runPng">{{ t('Exportar') }}</button>
+      </div>
+    </dialog>
   </header>
 </template>

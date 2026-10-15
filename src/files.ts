@@ -214,19 +214,32 @@ export async function exportSVG() {
   await writeOut(pageSVG(), exportName(), { name: "SVG", extensions: ["svg"] }, "image/svg+xml");
 }
 
-export async function exportPNG(dpi = 300) {
+// World box around the drawn objects of the current page, or null when there are none.
+// getBBox ignores stroke width, so pad by the widest outline.
+export function drawingBounds() {
+  const b = (document.getElementById("fd-shapes") as unknown as SVGGraphicsElement).getBBox();
+  if (!b.width && !b.height) return null;
+  const pad = Math.max(0, ...state.shapes.filter((s) => s.visible && s.stroke !== "none").map((s) => s.strokeWidth));
+  return { x: b.x - pad, y: b.y - pad, w: b.width + 2 * pad, h: b.height + 2 * pad };
+}
+
+// PNG of the objects only (cropped to them, not the page).
+export async function exportPNG(dpi = 300, transparent = false) {
+  const b = drawingBounds();
+  if (!b) return tell(t("No hay objetos para exportar."));
   const img = new Image();
-  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(pageSVG());
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(shapesSVG([b.x, b.y, b.w, b.h], [`${b.w}mm`, `${b.h}mm`]));
   await img.decode();
   const k = dpi / 25.4, canvas = document.createElement("canvas");
-  canvas.width = Math.round(state.page.w * k);
-  canvas.height = Math.round(state.page.h * k);
+  canvas.width = Math.max(1, Math.round(b.w * k));
+  canvas.height = Math.max(1, Math.round(b.h * k));
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!transparent) (ctx.fillStyle = "#fff", ctx.fillRect(0, 0, canvas.width, canvas.height));
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r));
-  if (blob) await writeOut(new Uint8Array(await blob.arrayBuffer()), exportName(), { name: "PNG", extensions: ["png"] }, "image/png");
+  // the browser refuses canvases past its size limit
+  if (!blob) return tell(t("La imagen es demasiado grande. Prueba con menos puntos por pulgada."));
+  await writeOut(new Uint8Array(await blob.arrayBuffer()), exportName(), { name: "PNG", extensions: ["png"] }, "image/png");
 }
 
 // Ask before the desktop window closes with unsaved changes.

@@ -31,7 +31,7 @@ const alignKeys: Record<string, Edge> = { l: "left", r: "right", t: "top", b: "b
 
 function onKey(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
-  if (t.closest("input, textarea, select")) return;
+  if (t.closest("input, textarea, select, dialog")) return;
   const k = e.key.toLowerCase();
 
   if (e.ctrlKey || e.metaKey) {

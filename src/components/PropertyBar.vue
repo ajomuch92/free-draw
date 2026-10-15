@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import {
   state as S, selected, selectionFrame, setFrame, setPage, flip, applyStyle, commit, measureText,
-  PAGE_SIZES, FONTS, PT, customColors, addCustomColor,
+  PAGE_SIZES, FONTS, PT, customColors, addCustomColor, type Mark,
 } from "../store";
 import {
   isCurvable, combine, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
@@ -245,6 +245,17 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
             </svg>
           </button>
         </span>
+      </template>
+      <template v-if="one?.type === 'ellipse'">
+        <div class="w-px h-6 bg-neutral-300" />
+        <label class="flex items-center gap-1">{{ t('Centro:') }}
+          <select :value="one.mark ?? 'none'" @change="(one.mark = ($event.target as HTMLSelectElement).value as Mark), commit()">
+            <option value="none">{{ t('Sin marca') }}</option>
+            <option value="dot">{{ t('● Punto') }}</option>
+            <option value="cross">{{ t('+ Cruz') }}</option>
+            <option value="x">{{ t('× Equis') }}</option>
+          </select>
+        </label>
       </template>
       <template v-if="one?.type === 'polygon'">
         <div class="w-px h-6 bg-neutral-300" />

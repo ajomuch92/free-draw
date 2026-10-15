@@ -55,6 +55,7 @@ export function convertToCurves(list = selected.value) {
     s.type = "path";
     delete s.radius;
     delete s.sides;
+    delete s.mark; // ponytail: centre mark dropped on conversion; make it subpaths if anyone misses it
     changed = true;
   }
   if (changed) commit();

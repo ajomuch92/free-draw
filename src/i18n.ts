@@ -313,4 +313,9 @@ export const en: Record<string, string> = {
   "Agregar a colores personalizados": "Add to custom colors",
   "Guardar la muestra en la paleta, debajo de los colores fijos": "Save the sample in the palette, below the built-in colors",
   "Ya está en tus colores personalizados": "Already in your custom colors",
+  "Centro:": "Center:",
+  "Sin marca": "No mark",
+  "● Punto": "● Dot",
+  "+ Cruz": "+ Cross",
+  "× Equis": "× X mark",
 };

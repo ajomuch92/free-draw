@@ -11,6 +11,7 @@ export type Dash = "solid" | "dash" | "dot";
 export type Cap = "butt" | "round" | "square";
 export type Join = "miter" | "round" | "bevel";
 export type Arrow = "none" | "triangle" | "open" | "dot";
+export type Mark = "none" | "dot" | "cross" | "x";
 export type P = { x: number; y: number };
 export type NodeKind = "cusp" | "smooth" | "symmetric";
 export interface PNode {
@@ -70,6 +71,7 @@ export interface Shape extends Style {
   groups?: string[]; // enclosing group ids, outermost first
   radius?: number | number[]; // mm; [top-left, top-right, bottom-right, bottom-left] when corners differ
   sides?: number;
+  mark?: Mark; // ellipse centre mark
   paths?: SubPath[]; // "path": normalised nodes, handles relative to their node
   dim?: { kind: DimKind; pts: [number, number][]; decimals: number; units: boolean; links?: (Link | null)[] };
   text?: string;

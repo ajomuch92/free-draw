@@ -514,3 +514,22 @@ export function resolveLink(l: Link): P | null {
   }
   return toWorld(s, l.nx ?? 0.5, l.ny ?? 0.5);
 }
+
+// ---------- preset figures ----------
+
+// 24×24 SVG path data; the same data draws the button icon.
+export const FIGURES: Record<string, { label: string; d: string }> = {
+  cross: { label: "Cruz", d: "M9 3h6v6h6v6h-6v6H9v-6H3V9h6z" },
+  x: { label: "Equis", d: "M5 3l7 7 7-7 2 2-7 7 7 7-2 2-7-7-7 7-2-2 7-7-7-7z" },
+  star: { label: "Estrella", d: "M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7.3L12 17.8l-6.2 3.7 1.6-7.3L2 9.5l7.1-.6z" },
+  moon: { label: "Luna", d: "M14 2A10 10 0 1 0 22 17A9 9 0 0 1 14 2z" },
+  heart: { label: "Corazón", d: "M12 21C5 15.5 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7.5-10 13z" },
+  arrow: { label: "Flecha", d: "M2 9h12V4l8 8-8 8v-5H2z" },
+  bolt: { label: "Rayo", d: "M13 2L4 14h7l-1 8 9-12h-7z" },
+};
+
+export function figureShape(name: string, box: { x: number; y: number; w: number; h: number }): Shape {
+  const s = makeShape("path", {});
+  setWorldPaths(s, fromPaper(new paper.CompoundPath(FIGURES[name].d)));
+  return Object.assign(s, box);
+}

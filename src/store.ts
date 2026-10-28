@@ -4,7 +4,7 @@ import { t } from "./i18n";
 // World units are millimetres. Shapes live in their own bbox (x, y, w, h) and
 // rotate around its centre; point lists are normalised to 0..1 inside the bbox.
 
-export type Tool = "pick" | "shape" | "eyedropper" | "freehand" | "line" | "dimension" | "rect" | "ellipse" | "polygon" | "text" | "zoom" | "pan";
+export type Tool = "pick" | "shape" | "eyedropper" | "freehand" | "line" | "dimension" | "rect" | "ellipse" | "polygon" | "figure" | "text" | "zoom" | "pan";
 export type ShapeType = "rect" | "ellipse" | "polygon" | "path" | "text" | "dimension" | "image";
 export type DimKind = "parallel" | "h" | "v" | "angular";
 export type Dash = "solid" | "dash" | "dot";
@@ -140,6 +140,7 @@ export const state = reactive({
   nodeSel: [] as string[], // "subpath:index" of selected nodes (shape tool)
   dimMode: "parallel" as "parallel" | "hv" | "angular",
   sampled: null as string | null, // last colour taken with the eyedropper
+  figure: "star", // preset drawn by the figure tool (FIGURES key)
   dimDefaults: { decimals: 2, units: true },
   defaults: {
     fill: "none", stroke: "#000000", strokeWidth: 0.2, dash: "solid", cap: "butt", join: "round",

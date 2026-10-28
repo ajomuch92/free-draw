@@ -6,7 +6,7 @@ import {
   type Frame, type P, type Shape, type SubPath, type Link,
 } from "../store";
 import {
-  worldPaths, moveNodes, moveHandle, bendSegment, nearestSegment, addNodeAt, deleteNodes, key, pathFromPoints,
+  worldPaths, moveNodes, moveHandle, bendSegment, nearestSegment, addNodeAt, deleteNodes, key, pathFromPoints, figureShape,
 } from "../paths";
 import { makeDimension, hvKind, updateLinkedDimensions } from "../dimensions";
 import { snapContext, snapPoint, moveTargets, snapMove, type SnapResult } from "../snap";
@@ -298,7 +298,7 @@ function onMove(e: PointerEvent) {
   if (S.tool === "dimension" && dimStep) return dimensionMove(p);
   if (!drag) {
     // ponytail: hover rebuilds snap points on every move; cache per document change if docs get big
-    if (S.tool === "dimension" || S.tool === "line" || S.tool === "rect" || S.tool === "ellipse" || S.tool === "polygon")
+    if (S.tool === "dimension" || S.tool === "line" || S.tool === "rect" || S.tool === "ellipse" || S.tool === "polygon" || S.tool === "figure")
       snapped(p, snapContext());
     return;
   }
@@ -389,7 +389,7 @@ function onMove(e: PointerEvent) {
 }
 
 function buildDraft(d: Extract<Drag, { kind: "create" }>, p: P, e: PointerEvent): Shape {
-  const t = S.tool as "rect" | "ellipse" | "polygon" | "line" | "freehand";
+  const t = S.tool as "rect" | "ellipse" | "polygon" | "figure" | "line" | "freehand";
   if (t === "freehand") {
     const last = d.pts[d.pts.length - 1];
     if (Math.hypot(p.x - last.x, p.y - last.y) * S.zoom > 2) d.pts.push(p);
@@ -414,6 +414,7 @@ function buildDraft(d: Extract<Drag, { kind: "create" }>, p: P, e: PointerEvent)
   const box = e.shiftKey
     ? { x: d.start.x - Math.abs(dx), y: d.start.y - Math.abs(dy), w: Math.abs(dx) * 2, h: Math.abs(dy) * 2 }
     : { x: Math.min(d.start.x, d.start.x + dx), y: Math.min(d.start.y, d.start.y + dy), w: Math.abs(dx), h: Math.abs(dy) };
+  if (t === "figure") return figureShape(S.figure, box);
   return makeShape(t, { ...box, ...(t === "polygon" ? { sides: 5 } : {}) });
 }
 

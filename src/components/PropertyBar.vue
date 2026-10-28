@@ -6,7 +6,7 @@ import {
 } from "../store";
 import {
   isCurvable, combine, booleanOp, addNodes, deleteNodes, joinNodes, breakAtNodes,
-  toggleClosed, toLine, toCurve, setNodeKind, type BoolOp,
+  toggleClosed, toLine, toCurve, setNodeKind, FIGURES, type BoolOp,
 } from "../paths";
 import { toCurves } from "../fonts";
 import { breakApart } from "../dimensions";
@@ -124,6 +124,19 @@ const on = (active: boolean) => (active ? "bg-blue-100 border-blue-400" : "borde
       </div>
       <button v-if="canPickScreen" :class="btn" :title="t('Tomar un color de cualquier parte de la pantalla, incluso fuera de la ventana')" @click="sampleScreen">{{ t('Tomar de la pantalla') }}</button>
       <span class="text-neutral-500">{{ t('Clic en el dibujo para tomar un color; si hay objetos seleccionados se aplica como relleno (Shift o clic derecho: contorno).') }}</span>
+    </template>
+
+    <template v-else-if="S.tool === 'figure'">
+      <div class="flex gap-0.5">
+        <button
+          v-for="(f, k) in FIGURES" :key="k"
+          class="w-7 h-6 grid place-items-center rounded-sm border" :class="on(S.figure === k)"
+          :title="t(f.label)" :aria-label="t(f.label)" :aria-pressed="S.figure === k" @click="S.figure = k"
+        >
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path :d="f.d" /></svg>
+        </button>
+      </div>
+      <span class="text-neutral-500">{{ t('Elija una figura y arrastre para dibujarla (Ctrl: proporcional, Shift: desde el centro).') }}</span>
     </template>
 
     <template v-else-if="S.tool === 'dimension'">

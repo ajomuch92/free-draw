@@ -49,13 +49,15 @@ const closedD = computed(() => (props.shape.type === "path" ? pathD(props.shape,
 const openD = computed(() => (props.shape.type === "path" ? pathD(props.shape, false) : ""));
 // per-corner radii have no SVG <rect> equivalent: draw the rectangle as a path
 const rectD = computed(() => (Array.isArray(props.shape.radius) ? pathD({ ...props.shape, paths: curvesOf(props.shape) }, true) : ""));
-// Ellipse centre mark, sized to 15% of the smaller diameter, in the outline colour.
+// Ellipse centre mark, sized (thickness too) to 15% of the smaller diameter, in the outline colour.
 const mark = computed(() => {
   const s = props.shape, cx = s.w / 2, cy = s.h / 2, r = Math.min(s.w, s.h) * 0.15, d = r * Math.SQRT1_2;
   const ds = { cross: `M${cx - r} ${cy}H${cx + r}M${cx} ${cy - r}V${cy + r}`, x: `M${cx - d} ${cy - d}L${cx + d} ${cy + d}M${cx + d} ${cy - d}L${cx - d} ${cy + d}` };
   return {
     d: s.mark === "cross" || s.mark === "x" ? ds[s.mark] : "",
-    r: Math.max(s.strokeWidth, r * 0.3),
+    r: r * 0.3,
+    // never thicker than a fifth of the arm, so small circles keep a fine mark
+    width: Math.min(s.strokeWidth || 0.2, r * 0.2),
     color: s.stroke === "none" ? "#000" : s.stroke,
   };
 });
@@ -107,7 +109,7 @@ const lines = computed(() => (props.shape.text ?? "").split("\n"));
       <template v-else-if="shape.type === 'ellipse'">
         <ellipse :cx="shape.w / 2" :cy="shape.h / 2" :rx="shape.w / 2" :ry="shape.h / 2" v-bind="paint" pointer-events="all" />
         <circle v-if="shape.mark === 'dot'" :cx="shape.w / 2" :cy="shape.h / 2" :r="mark.r" :fill="mark.color" />
-        <path v-else-if="mark.d" :d="mark.d" :stroke="mark.color" :stroke-width="shape.strokeWidth || 0.2" stroke-linecap="round" fill="none" />
+        <path v-else-if="mark.d" :d="mark.d" :stroke="mark.color" :stroke-width="mark.width" stroke-linecap="round" fill="none" />
       </template>
       <polygon v-else-if="shape.type === 'polygon'" :points="points" v-bind="paint" pointer-events="all" />
       <template v-else-if="shape.type === 'path'">
